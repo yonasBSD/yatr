@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use rhai::{Engine, Scope, AST, Dynamic, EvalAltResult, FuncRegistration, Module};
+use rhai::{Dynamic, Engine, EvalAltResult, Scope, AST};
 
 /// Script execution engine
 #[derive(Debug, Clone)]
@@ -119,15 +119,21 @@ impl ScriptEngine {
     /// Register standard library functions
     fn register_stdlib(engine: &mut Engine) {
         // File operations
-        engine.register_fn("read_file", |path: &str| -> Result<String, Box<EvalAltResult>> {
-            std::fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read file '{}': {}", path, e).into())
-        });
+        engine.register_fn(
+            "read_file",
+            |path: &str| -> Result<String, Box<EvalAltResult>> {
+                std::fs::read_to_string(path)
+                    .map_err(|e| format!("Failed to read file '{}': {}", path, e).into())
+            },
+        );
 
-        engine.register_fn("write_file", |path: &str, content: &str| -> Result<(), Box<EvalAltResult>> {
-            std::fs::write(path, content)
-                .map_err(|e| format!("Failed to write file '{}': {}", path, e).into())
-        });
+        engine.register_fn(
+            "write_file",
+            |path: &str, content: &str| -> Result<(), Box<EvalAltResult>> {
+                std::fs::write(path, content)
+                    .map_err(|e| format!("Failed to write file '{}': {}", path, e).into())
+            },
+        );
 
         engine.register_fn("file_exists", |path: &str| -> bool {
             std::path::Path::new(path).exists()
@@ -152,18 +158,24 @@ impl ScriptEngine {
                 .map_err(|e| format!("Failed to remove directory '{}': {}", path, e).into())
         });
 
-        engine.register_fn("list_dir", |path: &str| -> Result<rhai::Array, Box<EvalAltResult>> {
-            let entries: Result<Vec<_>, _> = std::fs::read_dir(path)
-                .map_err(|e| format!("Failed to read directory '{}': {}", path, e))?
-                .map(|e| e.map(|e| Dynamic::from(e.path().to_string_lossy().to_string())))
-                .collect();
+        engine.register_fn(
+            "list_dir",
+            |path: &str| -> Result<rhai::Array, Box<EvalAltResult>> {
+                let entries: Result<Vec<_>, _> = std::fs::read_dir(path)
+                    .map_err(|e| format!("Failed to read directory '{}': {}", path, e))?
+                    .map(|e| e.map(|e| Dynamic::from(e.path().to_string_lossy().to_string())))
+                    .collect();
 
-            entries.map_err(|e: std::io::Error| e.to_string().into())
-        });
+                entries.map_err(|e: std::io::Error| e.to_string().into())
+            },
+        );
 
         // Path operations
         engine.register_fn("join_path", |a: &str, b: &str| -> String {
-            std::path::Path::new(a).join(b).to_string_lossy().to_string()
+            std::path::Path::new(a)
+                .join(b)
+                .to_string_lossy()
+                .to_string()
         });
 
         engine.register_fn("parent_path", |path: &str| -> String {
@@ -190,19 +202,13 @@ impl ScriptEngine {
         // Shell command execution
         engine.register_fn("exec", |cmd: &str| -> Result<String, Box<EvalAltResult>> {
             let output = if cfg!(windows) {
-                std::process::Command::new("cmd")
-                    .args(["/C", cmd])
-                    .output()
+                std::process::Command::new("cmd").args(["/C", cmd]).output()
             } else {
-                std::process::Command::new("sh")
-                    .args(["-c", cmd])
-                    .output()
+                std::process::Command::new("sh").args(["-c", cmd]).output()
             };
 
             match output {
-                Ok(o) if o.status.success() => {
-                    Ok(String::from_utf8_lossy(&o.stdout).to_string())
-                }
+                Ok(o) if o.status.success() => Ok(String::from_utf8_lossy(&o.stdout).to_string()),
                 Ok(o) => {
                     let stderr = String::from_utf8_lossy(&o.stderr);
                     Err(format!("Command failed: {}", stderr).into())
@@ -221,57 +227,69 @@ impl ScriptEngine {
         });
 
         // String utilities
-        engine.register_fn("glob", |pattern: &str| -> Result<rhai::Array, Box<EvalAltResult>> {
-            let paths: Vec<_> = glob::glob(pattern)
-                .map_err(|e| format!("Invalid glob pattern: {}", e))?
-                .filter_map(|p| p.ok())
-                .map(|p| Dynamic::from(p.to_string_lossy().to_string()))
-                .collect();
-            Ok(paths)
-        });
+        engine.register_fn(
+            "glob",
+            |pattern: &str| -> Result<rhai::Array, Box<EvalAltResult>> {
+                let paths: Vec<_> = glob::glob(pattern)
+                    .map_err(|e| format!("Invalid glob pattern: {}", e))?
+                    .filter_map(|p| p.ok())
+                    .map(|p| Dynamic::from(p.to_string_lossy().to_string()))
+                    .collect();
+                Ok(paths)
+            },
+        );
 
         // JSON operations
-        engine.register_fn("parse_json", |s: &str| -> Result<Dynamic, Box<EvalAltResult>> {
-            let value: serde_json::Value = serde_json::from_str(s)
-                .map_err(|e| format!("Failed to parse JSON: {}", e))?;
-            json_to_dynamic(value)
-        });
+        engine.register_fn(
+            "parse_json",
+            |s: &str| -> Result<Dynamic, Box<EvalAltResult>> {
+                let value: serde_json::Value =
+                    serde_json::from_str(s).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+                json_to_dynamic(value)
+            },
+        );
 
-        engine.register_fn("to_json", |value: Dynamic| -> Result<String, Box<EvalAltResult>> {
-            let json = dynamic_to_json(value)?;
-            serde_json::to_string_pretty(&json)
-                .map_err(|e| format!("Failed to serialize JSON: {}", e).into())
-        });
+        engine.register_fn(
+            "to_json",
+            |value: Dynamic| -> Result<String, Box<EvalAltResult>> {
+                let json = dynamic_to_json(value)?;
+                serde_json::to_string_pretty(&json)
+                    .map_err(|e| format!("Failed to serialize JSON: {}", e).into())
+            },
+        );
 
         // TOML operations
-        engine.register_fn("parse_toml", |s: &str| -> Result<Dynamic, Box<EvalAltResult>> {
-            let value: toml::Value = toml::from_str(s)
-                .map_err(|e| format!("Failed to parse TOML: {}", e))?;
-            toml_to_dynamic(value)
-        });
+        engine.register_fn(
+            "parse_toml",
+            |s: &str| -> Result<Dynamic, Box<EvalAltResult>> {
+                let value: toml::Value =
+                    toml::from_str(s).map_err(|e| format!("Failed to parse TOML: {}", e))?;
+                toml_to_dynamic(value)
+            },
+        );
 
         // Version comparison (useful for version bumping)
-        engine.register_fn("semver_bump", |version: &str, part: &str| -> Result<String, Box<EvalAltResult>> {
-            let parts: Vec<u32> = version
-                .split('.')
-                .map(|s| s.parse().unwrap_or(0))
-                .collect();
+        engine.register_fn(
+            "semver_bump",
+            |version: &str, part: &str| -> Result<String, Box<EvalAltResult>> {
+                let parts: Vec<u32> = version.split('.').map(|s| s.parse().unwrap_or(0)).collect();
 
-            if parts.len() != 3 {
-                return Err("Invalid semver format".into());
-            }
+                if parts.len() != 3 {
+                    return Err("Invalid semver format".into());
+                }
 
-            let (major, minor, patch) = (parts[0], parts[1], parts[2]);
+                let (major, minor, patch) = (parts[0], parts[1], parts[2]);
 
-            let new_version = match part {
-                "major" => format!("{}.0.0", major + 1),
-                "minor" => format!("{}.{}.0", major, minor + 1),
-                "patch" => format!("{}.{}.{}", major, minor, patch + 1),
-                _ => return Err(format!("Unknown version part: {}", part).into()),
-            };
+                let new_version = match part {
+                    "major" => format!("{}.0.0", major + 1),
+                    "minor" => format!("{}.{}.0", major, minor + 1),
+                    "patch" => format!("{}.{}.{}", major, minor, patch + 1),
+                    _ => return Err(format!("Unknown version part: {}", part).into()),
+                };
 
-            Ok(new_version)
-        });
+                Ok(new_version)
+            },
+        );
     }
 }
 

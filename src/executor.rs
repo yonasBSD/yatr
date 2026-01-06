@@ -13,10 +13,9 @@ use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
-use tokio::time::timeout;
 
 use crate::cache::Cache;
-use crate::config::{Config, TaskConfig};
+use crate::config::Config;
 use crate::error::{Result, YatrError};
 use crate::graph::{ExecutionPlan, TaskGraph, TaskNode};
 use crate::script::ScriptEngine;
@@ -142,9 +141,12 @@ impl Executor {
 
             // Wait for all tasks in this group
             for handle in handles {
-                let result = handle.await.map_err(|e| YatrError::Io(
-                    std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-                ))??;
+                let result = handle.await.map_err(|e| {
+                    YatrError::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        e.to_string(),
+                    ))
+                })??;
 
                 let success = result.success;
                 let task_name = result.name.clone();
@@ -213,18 +215,31 @@ impl Executor {
 
         let result = if task.config.foreground {
             // Execute in foreground with inherited stdio (for long-running processes)
-            Self::execute_foreground(&task.name, &task.config.run, &env, &cwd, &task_exec_config).await
+            Self::execute_foreground(&task.name, &task.config.run, &env, &cwd, &task_exec_config)
+                .await
         } else if let Some(script) = &task.config.script {
             // Execute Rhai script
             Self::execute_script(&task.name, script, &env, &cwd).await
         } else if task.config.parallel {
             // Execute commands in parallel
-            Self::execute_commands_parallel(&task.name, &task.config.run, &env, &cwd, &task_exec_config)
-                .await
+            Self::execute_commands_parallel(
+                &task.name,
+                &task.config.run,
+                &env,
+                &cwd,
+                &task_exec_config,
+            )
+            .await
         } else {
             // Execute commands sequentially
-            Self::execute_commands_sequential(&task.name, &task.config.run, &env, &cwd, &task_exec_config)
-                .await
+            Self::execute_commands_sequential(
+                &task.name,
+                &task.config.run,
+                &env,
+                &cwd,
+                &task_exec_config,
+            )
+            .await
         };
 
         let duration = start.elapsed();
@@ -276,7 +291,7 @@ impl Executor {
 
     /// Execute commands sequentially
     async fn execute_commands_sequential(
-        task_name: &str,
+        _task_name: &str,
         commands: &[String],
         env: &HashMap<String, String>,
         cwd: &Path,
@@ -346,7 +361,7 @@ impl Executor {
 
     /// Execute commands in parallel
     async fn execute_commands_parallel(
-        task_name: &str,
+        _task_name: &str,
         commands: &[String],
         env: &HashMap<String, String>,
         cwd: &Path,
@@ -367,9 +382,12 @@ impl Executor {
 
         let mut all_output = String::new();
         for handle in handles {
-            let output = handle.await.map_err(|e| YatrError::Io(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-            ))??;
+            let output = handle.await.map_err(|e| {
+                YatrError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })??;
             all_output.push_str(&output);
             all_output.push('\n');
         }
@@ -484,7 +502,11 @@ impl Executor {
                         println!("    {} {}", style("→").dim(), cmd);
                     }
                 } else if task.config.script.is_some() {
-                    println!("    {} {}", style("→").dim(), style("[rhai script]").italic());
+                    println!(
+                        "    {} {}",
+                        style("→").dim(),
+                        style("[rhai script]").italic()
+                    );
                 }
             }
         }

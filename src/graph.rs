@@ -45,10 +45,12 @@ impl TaskGraph {
             let task_idx = name_to_index[name];
 
             for dep in &task_config.depends {
-                let dep_idx = name_to_index.get(dep).ok_or_else(|| YatrError::TaskNotFound {
-                    name: dep.clone(),
-                    available: config.task_names().iter().map(|s| s.to_string()).collect(),
-                })?;
+                let dep_idx = name_to_index
+                    .get(dep)
+                    .ok_or_else(|| YatrError::TaskNotFound {
+                        name: dep.clone(),
+                        available: config.task_names().iter().map(|s| s.to_string()).collect(),
+                    })?;
 
                 // Edge goes from dependency TO dependent (dep must run first)
                 graph.add_edge(*dep_idx, task_idx, ());
@@ -69,13 +71,13 @@ impl TaskGraph {
 
     /// Get execution order for a specific task (including dependencies)
     pub fn execution_order(&self, task_name: &str) -> Result<Vec<&TaskNode>> {
-        let target_idx = self
-            .name_to_index
-            .get(task_name)
-            .ok_or_else(|| YatrError::TaskNotFound {
-                name: task_name.to_string(),
-                available: self.name_to_index.keys().cloned().collect(),
-            })?;
+        let target_idx =
+            self.name_to_index
+                .get(task_name)
+                .ok_or_else(|| YatrError::TaskNotFound {
+                    name: task_name.to_string(),
+                    available: self.name_to_index.keys().cloned().collect(),
+                })?;
 
         // Get all ancestors (dependencies) of the target task
         let required_nodes = self.get_ancestors(*target_idx);
@@ -107,7 +109,6 @@ impl TaskGraph {
     /// Get ancestors (all dependencies, transitive) of a node
     fn get_ancestors(&self, target: NodeIndex) -> Vec<NodeIndex> {
         use petgraph::visit::Bfs;
-        use petgraph::Direction;
 
         let mut ancestors = vec![target];
         let mut visited = std::collections::HashSet::new();
@@ -176,9 +177,7 @@ impl TaskGraph {
 
     /// Get a task by name
     pub fn get_task(&self, name: &str) -> Option<&TaskNode> {
-        self.name_to_index
-            .get(name)
-            .map(|&idx| &self.graph[idx])
+        self.name_to_index.get(name).map(|&idx| &self.graph[idx])
     }
 
     /// Get all task names
@@ -291,10 +290,22 @@ mod tests {
         let names: Vec<_> = order.iter().map(|t| t.name.as_str()).collect();
 
         // 'a' must come before 'b' and 'c', which must come before 'd'
-        assert!(names.iter().position(|&n| n == "a").unwrap() < names.iter().position(|&n| n == "b").unwrap());
-        assert!(names.iter().position(|&n| n == "a").unwrap() < names.iter().position(|&n| n == "c").unwrap());
-        assert!(names.iter().position(|&n| n == "b").unwrap() < names.iter().position(|&n| n == "d").unwrap());
-        assert!(names.iter().position(|&n| n == "c").unwrap() < names.iter().position(|&n| n == "d").unwrap());
+        assert!(
+            names.iter().position(|&n| n == "a").unwrap()
+                < names.iter().position(|&n| n == "b").unwrap()
+        );
+        assert!(
+            names.iter().position(|&n| n == "a").unwrap()
+                < names.iter().position(|&n| n == "c").unwrap()
+        );
+        assert!(
+            names.iter().position(|&n| n == "b").unwrap()
+                < names.iter().position(|&n| n == "d").unwrap()
+        );
+        assert!(
+            names.iter().position(|&n| n == "c").unwrap()
+                < names.iter().position(|&n| n == "d").unwrap()
+        );
     }
 
     #[test]

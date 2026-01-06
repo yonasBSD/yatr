@@ -7,8 +7,7 @@
 //!
 //! Cache entries are stored locally with optional remote sync support planned.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use blake3::Hasher;
 use globset::{Glob, GlobSetBuilder};
@@ -89,11 +88,10 @@ impl Cache {
         }
 
         let meta_content = tokio::fs::read_to_string(&meta_path).await?;
-        let entry: CacheEntry = serde_json::from_str(&meta_content).map_err(|_| {
-            YatrError::Cache {
+        let entry: CacheEntry =
+            serde_json::from_str(&meta_content).map_err(|_| YatrError::Cache {
                 message: "Invalid cache metadata".to_string(),
-            }
-        })?;
+            })?;
 
         // Verify the entry is for this task
         if entry.task != task_name {
@@ -127,10 +125,8 @@ impl Cache {
             output_size: output.len(),
         };
 
-        let meta_content = serde_json::to_string_pretty(&entry).map_err(|e| {
-            YatrError::Cache {
-                message: format!("Failed to serialize cache metadata: {}", e),
-            }
+        let meta_content = serde_json::to_string_pretty(&entry).map_err(|e| YatrError::Cache {
+            message: format!("Failed to serialize cache metadata: {}", e),
         })?;
 
         tokio::fs::write(&meta_path, meta_content).await?;
@@ -184,7 +180,12 @@ impl Cache {
 
         for entry in std::fs::read_dir(&self.dir)? {
             let entry = entry?;
-            if entry.path().extension().map(|e| e == "cache").unwrap_or(false) {
+            if entry
+                .path()
+                .extension()
+                .map(|e| e == "cache")
+                .unwrap_or(false)
+            {
                 total_size += entry.metadata()?.len();
                 entry_count += 1;
             }

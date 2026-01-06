@@ -7,6 +7,8 @@
 //! - File watching
 //! - Parallel execution
 
+#![allow(unused_variables, unused_imports, dead_code, unused_assignments, mismatched_lifetime_syntaxes)]
+
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -67,9 +69,7 @@ async fn run(cli: Cli) -> Result<()> {
 
     match cli.effective_command() {
         EffectiveCommand::Subcommand(cmd) => run_command(cmd, &cli).await,
-        EffectiveCommand::RunTasks(tasks) => {
-            run_tasks(tasks, false, false, 0, false, &cli).await
-        }
+        EffectiveCommand::RunTasks(tasks) => run_tasks(tasks, false, false, 0, false, &cli).await,
         EffectiveCommand::None => {
             // No command - show help or list tasks
             let (config, _) = Config::load(cli.config.as_deref())?;
@@ -88,9 +88,7 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
             force,
             parallel,
             shell,
-        } => {
-            run_tasks(tasks, *dry_run, *force, *parallel, *shell, cli).await
-        }
+        } => run_tasks(tasks, *dry_run, *force, *parallel, *shell, cli).await,
 
         Commands::List { format, deps } => {
             let (config, _) = Config::load(cli.config.as_deref())?;
@@ -174,14 +172,11 @@ async fn run_tasks(
 }
 
 async fn run_cache_command(cmd: &CacheCommands, cli: &Cli) -> Result<()> {
-    let cache_dir = cli
-        .config
-        .as_ref()
-        .and_then(|_| {
-            Config::load(cli.config.as_deref())
-                .ok()
-                .and_then(|(c, _)| c.settings.cache_dir)
-        });
+    let cache_dir = cli.config.as_ref().and_then(|_| {
+        Config::load(cli.config.as_deref())
+            .ok()
+            .and_then(|(c, _)| c.settings.cache_dir)
+    });
 
     let cache = cache::Cache::new(cache_dir)?;
 
@@ -223,11 +218,7 @@ fn print_task_list(graph: &TaskGraph, config: &Config, format: ListFormat, show_
 
             for name in names {
                 if let Some(task) = graph.get_task(name) {
-                    let desc = task
-                        .config
-                        .desc
-                        .as_deref()
-                        .unwrap_or("");
+                    let desc = task.config.desc.as_deref().unwrap_or("");
 
                     print!(
                         "  {}{}  {}",
