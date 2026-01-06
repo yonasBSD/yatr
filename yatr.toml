@@ -94,46 +94,28 @@ allow_failure = true
 desc = "Bump patch version"
 no_cache = true
 script = '''
-    let cargo = read_file("Cargo.toml");
-    let lines = cargo.split("\n");
-    
-    for line in lines {
-        if line.starts_with("version = ") {
-            let version = line.replace("version = ", "").replace("\"", "");
-            let new_version = semver_bump(version, "patch");
-            print(`Bumping version: ${version} -> ${new_version}`);
-            
-            let updated = cargo.replace(
-                `version = "${version}"`, 
-                `version = "${new_version}"`
-            );
-            write_file("Cargo.toml", updated);
-            break;
-        }
-    }
+    let cargo = parse_toml( read_file("Cargo.toml") );
+    let version = cargo["package"].version;
+    let new_version = semver_bump(version, "patch");
+
+    print(`Bumping version: ${version} -> ${new_version}`);
+
+    cargo["package"].version = new_version;
+    write_file("Cargo.toml", to_toml(cargo));
 '''
 
 [tasks.bump-minor]
 desc = "Bump minor version"
 no_cache = true
 script = '''
-    let cargo = read_file("Cargo.toml");
-    let lines = cargo.split("\n");
-    
-    for line in lines {
-        if line.starts_with("version = ") {
-            let version = line.replace("version = ", "").replace("\"", "");
-            let new_version = semver_bump(version, "minor");
-            print(`Bumping version: ${version} -> ${new_version}`);
-            
-            let updated = cargo.replace(
-                `version = "${version}"`, 
-                `version = "${new_version}"`
-            );
-            write_file("Cargo.toml", updated);
-            break;
-        }
-    }
+    let cargo = parse_toml( read_file("Cargo.toml") );
+    let version = cargo["package"].version;
+    let new_version = semver_bump(version, "minor");
+
+    print(`Bumping version: ${version} -> ${new_version}`);
+
+    cargo["package"].version = new_version;
+    write_file("Cargo.toml", to_toml(cargo));
 '''
 
 [tasks.publish-dry]

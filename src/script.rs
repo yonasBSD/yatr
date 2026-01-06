@@ -4,12 +4,12 @@
 //! Rhai was chosen for its fast startup time, Rust-native integration,
 //! and familiar syntax.
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
-
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
 use rhai::{Dynamic, Engine, EvalAltResult, Scope, AST};
+use toml_edit::DocumentMut;
 
 /// Script execution engine
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub struct ScriptEngine {
 
 impl ScriptEngine {
     /// Create a new script engine with standard functions registered
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -55,7 +55,7 @@ impl ScriptEngine {
         // Inject environment variables
         let env_map: rhai::Map = env
             .iter()
-            .map(|(k, v)| (k.clone().into(), Dynamic::from(v.clone())))
+            .map(|(k, v): (&String, &String)| (k.clone().into(), Dynamic::from(v.clone())))
             .collect();
         scope.push("env", env_map);
 
@@ -100,7 +100,7 @@ impl ScriptEngine {
 
         let env_map: rhai::Map = env
             .iter()
-            .map(|(k, v)| (k.clone().into(), Dynamic::from(v.clone())))
+            .map(|(k, v): (&String, &String)| (k.clone().into(), Dynamic::from(v.clone())))
             .collect();
         scope.push("env", env_map);
         scope.push("cwd", cwd.to_string_lossy().to_string());
@@ -263,16 +263,23 @@ impl ScriptEngine {
                     .map_err(|e| format!("Failed to serialize JSON: {e}").into())
             },
         );
+        // TOML Operations using toml_edit (Preserves order)
+        engine.register_fn("parse_toml", |content: &str| -> Result<rhai::Map, Box<EvalAltResult>> {
+            let doc = content.parse::<DocumentMut>()
+                .map_err(|e| format!("TOML Parse Error: {e}"))?;
 
-        // TOML operations
-        engine.register_fn(
-            "parse_toml",
-            |s: &str| -> Result<Dynamic, Box<EvalAltResult>> {
-                let value: toml::Value =
-                    toml::from_str(s).map_err(|e| format!("Failed to parse TOML: {e}"))?;
-                toml_to_dynamic(value)
-            },
-        );
+            // Convert to Rhai Map via Serde (Order is preserved)
+            let dynamic: Dynamic = toml_edit::de::from_document(doc)
+                .map_err(|e| format!("TOML Deserialization Error: {e}"))?;
+
+            dynamic.try_cast::<rhai::Map>().ok_or_else(|| "Failed to cast TOML to Map".into())
+        });
+
+        engine.register_fn("to_toml", |value: Dynamic| -> Result<String, Box<EvalAltResult>> {
+            // toml_edit's serializer respects the order of the source Map
+            toml_edit::ser::to_string_pretty(&value)
+                .map_err(|e| format!("TOML Serialization Error: {e}").into())
+        });
 
         // Version comparison (useful for version bumping)
         engine.register_fn(
@@ -344,6 +351,7 @@ fn dynamic_to_json(value: Dynamic) -> Result<serde_json::Value, Box<EvalAltResul
         return Ok(Value::Bool(b));
     }
     if let Some(i) = value.clone().try_cast::<i64>() {
+        // TOML treats all integers as i64 in Rhai
         return Ok(Value::Number(i.into()));
     }
     if let Some(f) = value.clone().try_cast::<f64>() {
@@ -366,30 +374,6 @@ fn dynamic_to_json(value: Dynamic) -> Result<serde_json::Value, Box<EvalAltResul
     }
 
     Err("Cannot convert value to JSON".into())
-}
-
-/// Convert `toml::Value` to Rhai Dynamic
-fn toml_to_dynamic(value: toml::Value) -> Result<Dynamic, Box<EvalAltResult>> {
-    use toml::Value;
-
-    Ok(match value {
-        Value::Boolean(b) => Dynamic::from(b),
-        Value::Integer(i) => Dynamic::from(i),
-        Value::Float(f) => Dynamic::from(f),
-        Value::String(s) => Dynamic::from(s),
-        Value::Datetime(dt) => Dynamic::from(dt.to_string()),
-        Value::Array(arr) => {
-            let vec: Result<rhai::Array, _> = arr.into_iter().map(toml_to_dynamic).collect();
-            Dynamic::from(vec?)
-        }
-        Value::Table(table) => {
-            let mut map = rhai::Map::new();
-            for (k, v) in table {
-                map.insert(k.into(), toml_to_dynamic(v)?);
-            }
-            Dynamic::from(map)
-        }
-    })
 }
 
 #[cfg(test)]
@@ -432,5 +416,51 @@ mod tests {
         );
         assert!(result.is_ok());
         assert_eq!(result.unwrap().trim(), "1.3.0");
+    }
+
+    #[test]
+    fn test_dynamic_to_toml_conversion() {
+        // Simple table
+        let mut map = rhai::Map::new();
+        map.insert("title".into(), Dynamic::from("TOML Example".to_string()));
+        map.insert("port".into(), Dynamic::from(8080 as i64));
+        map.insert("enabled".into(), Dynamic::from(true));
+        let rhai_dynamic = Dynamic::from(map);
+
+        let toml_value = dynamic_to_toml(rhai_dynamic).unwrap();
+
+        let expected_toml: toml::Value = toml::from_str::<toml::Value>(
+            r#"
+title = "TOML Example"
+port = 8080
+enabled = true
+"#,
+        ).unwrap();
+        assert_eq!(toml_value, expected_toml);
+
+        // Array
+        let array = vec![Dynamic::from(1 as i64), Dynamic::from(2 as i64), Dynamic::from(3 as i64)];
+        let rhai_dynamic_array = Dynamic::from(array);
+        let toml_value_array = dynamic_to_toml(rhai_dynamic_array).unwrap();
+
+        let expected_array: toml::Value = toml::from_str::<toml::Value>("a = [1, 2, 3]").unwrap().as_table().unwrap()["a"].clone();
+        assert_eq!(toml_value_array, expected_array);
+
+        // String that looks like a datetime
+        let rhai_dt = Dynamic::from("1979-05-27T07:32:00-08:00".to_string());
+        let toml_dt = dynamic_to_toml(rhai_dt).unwrap();
+
+        let expected_dt: toml::Value = toml::from_str::<toml::Value>("a = 1979-05-27T07:32:00-08:00").unwrap().as_table().unwrap()["a"].clone();
+        assert_eq!(toml_dt, expected_dt);
+
+        // String that does not look like a datetime
+        let rhai_string = Dynamic::from("just a string".to_string());
+        let toml_string = dynamic_to_toml(rhai_string).unwrap();
+        let expected_string: toml::Value = toml::Value::String("just a string".to_string());
+        assert_eq!(toml_string, expected_string);
+
+        // Error on unit type
+        let rhai_unit = Dynamic::UNIT;
+        assert!(dynamic_to_toml(rhai_unit).is_err());
     }
 }
