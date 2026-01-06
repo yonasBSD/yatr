@@ -7,7 +7,13 @@
 //! - File watching
 //! - Parallel execution
 
-#![allow(unused_variables, unused_imports, dead_code, unused_assignments, mismatched_lifetime_syntaxes)]
+#![allow(
+    unused_variables,
+    unused_imports,
+    dead_code,
+    unused_assignments,
+    mismatched_lifetime_syntaxes
+)]
 
 use std::process::ExitCode;
 

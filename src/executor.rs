@@ -141,12 +141,9 @@ impl Executor {
 
             // Wait for all tasks in this group
             for handle in handles {
-                let result = handle.await.map_err(|e| {
-                    YatrError::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        e.to_string(),
-                    ))
-                })??;
+                let result = handle
+                    .await
+                    .map_err(|e| YatrError::Io(std::io::Error::other(e.to_string())))??;
 
                 let success = result.success;
                 let task_name = result.name.clone();
@@ -382,12 +379,9 @@ impl Executor {
 
         let mut all_output = String::new();
         for handle in handles {
-            let output = handle.await.map_err(|e| {
-                YatrError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    e.to_string(),
-                ))
-            })??;
+            let output = handle
+                .await
+                .map_err(|e| YatrError::Io(std::io::Error::other(e.to_string())))??;
             all_output.push_str(&output);
             all_output.push('\n');
         }

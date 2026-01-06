@@ -7,7 +7,7 @@
 //!
 //! Cache entries are stored locally with optional remote sync support planned.
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use blake3::Hasher;
 use globset::{Glob, GlobSetBuilder};
@@ -330,6 +330,7 @@ mod tests {
             env: HashMap::new(),
             cwd: None,
             shell: None,
+            foreground: false,
             watch: vec![],
             sources: vec![],
             outputs: vec![],

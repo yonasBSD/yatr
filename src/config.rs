@@ -14,6 +14,7 @@ pub const CONFIG_FILES: &[&str] = &["yatr.toml", "Yatr.toml"];
 /// Root configuration structure
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+#[derive(Default)]
 pub struct Config {
     /// Global environment variables
     #[serde(default)]
@@ -224,16 +225,6 @@ impl Config {
         let mut env = self.env.clone();
         env.extend(task.env.clone());
         env
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            env: HashMap::new(),
-            tasks: HashMap::new(),
-            settings: Settings::default(),
-        }
     }
 }
 
