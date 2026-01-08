@@ -21,7 +21,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use console::style;
-use miette::IntoDiagnostic;
+use miette::{IntoDiagnostic, Result as MietteResult};
 
 mod cache;
 mod cli;
@@ -54,16 +54,22 @@ async fn main() -> ExitCode {
 
     let cli = Cli::parse();
 
-    // Handle --no-color
     if cli.no_color {
         console::set_colors_enabled(false);
         console::set_colors_enabled_stderr(false);
+        miette::set_hook(Box::new(|_| {
+            Box::new(
+                miette::GraphicalReportHandler::new_themed(miette::GraphicalTheme::unicode())
+                    .with_links(false),
+            )
+        }))
+        .expect("Could not set miette hook");
     }
 
     match run(cli).await {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(_) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("{}: {:?}", style("error").red().bold(), e);
+            eprintln!("{:?}", miette::Report::new(e));
             ExitCode::FAILURE
         }
     }
