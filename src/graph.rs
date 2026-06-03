@@ -49,7 +49,11 @@ impl TaskGraph {
                     .get(dep)
                     .ok_or_else(|| YatrError::TaskNotFound {
                         name: dep.clone(),
-                        available: config.task_names().iter().map(std::string::ToString::to_string).collect(),
+                        available: config
+                            .task_names()
+                            .iter()
+                            .map(std::string::ToString::to_string)
+                            .collect(),
                     })?;
 
                 // Edge goes from dependency TO dependent (dep must run first)
@@ -171,13 +175,13 @@ impl TaskGraph {
     }
 
     /// Check if a task exists
-    #[must_use] 
+    #[must_use]
     pub fn has_task(&self, name: &str) -> bool {
         self.name_to_index.contains_key(name)
     }
 
     /// Get a task by name
-    #[must_use] 
+    #[must_use]
     pub fn get_task(&self, name: &str) -> Option<&TaskNode> {
         self.name_to_index.get(name).map(|&idx| &self.graph[idx])
     }
@@ -188,7 +192,7 @@ impl TaskGraph {
     }
 
     /// Get direct dependencies of a task
-    #[must_use] 
+    #[must_use]
     pub fn dependencies(&self, name: &str) -> Option<Vec<&str>> {
         self.name_to_index.get(name).map(|&idx| {
             self.graph
@@ -199,7 +203,7 @@ impl TaskGraph {
     }
 
     /// Get tasks that depend on the given task
-    #[must_use] 
+    #[must_use]
     pub fn dependents(&self, name: &str) -> Option<Vec<&str>> {
         self.name_to_index.get(name).map(|&idx| {
             self.graph
@@ -221,7 +225,7 @@ pub struct ExecutionPlan<'a> {
 
 impl<'a> ExecutionPlan<'a> {
     /// Create an execution plan from a list of tasks
-    #[must_use] 
+    #[must_use]
     pub fn from_tasks(tasks: Vec<&'a TaskNode>, graph: &'a TaskGraph) -> Self {
         // Group tasks by "depth" in the dependency graph for parallel execution
         let mut parallel_groups: Vec<Vec<&'a TaskNode>> = Vec::new();

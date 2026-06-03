@@ -97,7 +97,7 @@ impl TaskWatcher {
     }
 
     /// Get the task name being watched
-    #[must_use] 
+    #[must_use]
     pub fn task_name(&self) -> &str {
         &self.task_name
     }
@@ -116,7 +116,10 @@ pub async fn watch_and_run(
         .get_task(task_name)
         .ok_or_else(|| YatrError::TaskNotFound {
             name: task_name.to_string(),
-            available: graph.task_names().map(std::string::ToString::to_string).collect(),
+            available: graph
+                .task_names()
+                .map(std::string::ToString::to_string)
+                .collect(),
         })?;
 
     // Determine watch patterns

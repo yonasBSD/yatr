@@ -71,7 +71,7 @@ pub struct Executor {
 
 impl Executor {
     /// Create a new executor
-    #[must_use] 
+    #[must_use]
     pub fn new(config: Config, exec_config: ExecutorConfig, cache: Option<Cache>) -> Self {
         Self {
             config: Arc::new(config),
@@ -92,7 +92,7 @@ impl Executor {
         }
 
         let parallelism = if self.exec_config.parallelism == 0 {
-            num_cpus::get()
+            std::thread::available_parallelism().map_or(4, std::num::NonZero::get)
         } else {
             self.exec_config.parallelism
         };
@@ -117,9 +117,9 @@ impl Executor {
                     let _permit = match sem.acquire().await {
                         Ok(p) => p,
                         Err(e) => {
-                            return Err(YatrError::Io(std::io::Error::other(
-                                format!("Semaphore acquire failed: {e}"),
-                            )))
+                            return Err(YatrError::Io(std::io::Error::other(format!(
+                                "Semaphore acquire failed: {e}"
+                            ))))
                         }
                     };
 
@@ -576,15 +576,6 @@ impl Executor {
                 total.as_secs_f64()
             );
         }
-    }
-}
-
-// num_cpus isn't in our deps, so let's add a simple fallback
-mod num_cpus {
-    pub fn get() -> usize {
-        std::thread::available_parallelism()
-            .map(std::num::NonZero::get)
-            .unwrap_or(4)
     }
 }
 

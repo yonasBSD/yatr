@@ -211,19 +211,19 @@ impl Config {
     }
 
     /// Get a task by name
-    #[must_use] 
+    #[must_use]
     pub fn get_task(&self, name: &str) -> Option<&TaskConfig> {
         self.tasks.get(name)
     }
 
     /// List all task names
-    #[must_use] 
+    #[must_use]
     pub fn task_names(&self) -> Vec<&str> {
         self.tasks.keys().map(std::string::String::as_str).collect()
     }
 
     /// Merge environment variables for a task (global + task-specific)
-    #[must_use] 
+    #[must_use]
     pub fn task_env(&self, task: &TaskConfig) -> HashMap<String, String> {
         let mut env = self.env.clone();
         env.extend(task.env.clone());

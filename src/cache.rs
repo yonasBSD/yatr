@@ -45,7 +45,10 @@ impl Cache {
     /// Create a new cache instance
     pub fn new(dir: Option<PathBuf>) -> Result<Self> {
         let dir = dir.unwrap_or_else(|| {
-            directories::ProjectDirs::from("", "", "yatr").map_or_else(|| PathBuf::from(".yatr/cache"), |d| d.cache_dir().to_path_buf())
+            directories::ProjectDirs::from("", "", "yatr").map_or_else(
+                || PathBuf::from(".yatr/cache"),
+                |d| d.cache_dir().to_path_buf(),
+            )
         });
 
         std::fs::create_dir_all(&dir)?;
@@ -54,7 +57,7 @@ impl Cache {
     }
 
     /// Create a disabled cache (no-op)
-    #[must_use] 
+    #[must_use]
     pub const fn disabled() -> Self {
         Self {
             dir: PathBuf::new(),
@@ -63,7 +66,7 @@ impl Cache {
     }
 
     /// Check if cache is enabled
-    #[must_use] 
+    #[must_use]
     pub const fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -180,11 +183,7 @@ impl Cache {
 
         for entry in std::fs::read_dir(&self.dir)? {
             let entry = entry?;
-            if entry
-                .path()
-                .extension()
-                .is_some_and(|e| e == "cache")
-            {
+            if entry.path().extension().is_some_and(|e| e == "cache") {
                 total_size += entry.metadata()?.len();
                 entry_count += 1;
             }

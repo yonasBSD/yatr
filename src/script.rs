@@ -19,7 +19,7 @@ pub struct ScriptEngine {
 
 impl ScriptEngine {
     /// Create a new script engine with standard functions registered
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -312,12 +312,11 @@ fn json_to_dynamic(value: serde_json::Value) -> Result<Dynamic, Box<EvalAltResul
     Ok(match value {
         Value::Null => Dynamic::UNIT,
         Value::Bool(b) => Dynamic::from(b),
-        Value::Number(n) => {
-            n.as_i64()
-                .map(Dynamic::from)
-                .or_else(|| n.as_f64().map(Dynamic::from))
-                .unwrap_or(Dynamic::UNIT)
-        }
+        Value::Number(n) => n
+            .as_i64()
+            .map(Dynamic::from)
+            .or_else(|| n.as_f64().map(Dynamic::from))
+            .unwrap_or(Dynamic::UNIT),
         Value::String(s) => Dynamic::from(s),
         Value::Array(arr) => {
             let vec: Result<rhai::Array, _> = arr.into_iter().map(json_to_dynamic).collect();
@@ -347,8 +346,7 @@ fn dynamic_to_json(value: Dynamic) -> Result<serde_json::Value, Box<EvalAltResul
         return Ok(Value::Number(i.into()));
     }
     if let Some(f) = value.clone().try_cast::<f64>() {
-        return Ok(serde_json::Number::from_f64(f)
-            .map_or(Value::Null, Value::Number));
+        return Ok(serde_json::Number::from_f64(f).map_or(Value::Null, Value::Number));
     }
     if let Some(s) = value.clone().try_cast::<String>() {
         return Ok(Value::String(s));
