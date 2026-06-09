@@ -153,18 +153,7 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
 
         Commands::Init { force } => init_config(*force),
 
-        Commands::Check => {
-            let (config, path) = Config::load(cli.config.as_deref())?;
-            let graph = TaskGraph::from_config(&config)?;
-
-            println!(
-                "{} {} is valid ({} tasks)",
-                style("✓").green(),
-                path.display(),
-                graph.task_names().count()
-            );
-            Ok(())
-        }
+        Commands::Check => run_check_command(cli),
 
         Commands::Schema => {
             let schema = schemars::schema_for!(Config);
@@ -175,6 +164,83 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
         }
 
         Commands::Affected { git_ref, format } => run_affected_command(git_ref, format, cli),
+    }
+}
+
+fn run_check_command(cli: &Cli) -> Result<()> {
+    let (config, path) = Config::load(cli.config.as_deref())?;
+    let graph = TaskGraph::from_config(&config)?;
+
+    let mut errors: Vec<String> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
+
+    for name in graph.task_names() {
+        let Some(task) = config.get_task(name) else {
+            continue;
+        };
+        let base = task.cwd.clone().unwrap_or_else(|| ".".into());
+
+        // Referenced paths must exist.
+        if let Some(cwd) = &task.cwd {
+            if !cwd.is_dir() {
+                errors.push(format!(
+                    "task '{name}': cwd '{}' does not exist",
+                    cwd.display()
+                ));
+            }
+        }
+        if let Some(wasm) = &task.wasm {
+            let resolved = if wasm.is_absolute() {
+                wasm.clone()
+            } else {
+                base.join(wasm)
+            };
+            if !resolved.is_file() {
+                errors.push(format!(
+                    "task '{name}': wasm plugin '{}' not found",
+                    resolved.display()
+                ));
+            }
+        }
+
+        // Config smells worth a nudge.
+        if !task.outputs.is_empty() && task.no_cache {
+            warnings.push(format!(
+                "task '{name}': declares `outputs` but `no_cache = true` — outputs won't be cached"
+            ));
+        }
+        if task.foreground && task.run.len() > 1 {
+            warnings.push(format!(
+                "task '{name}': foreground tasks only run their first command ({} given)",
+                task.run.len()
+            ));
+        }
+    }
+
+    for w in &warnings {
+        println!("{} {w}", style("warning:").yellow().bold());
+    }
+    for e in &errors {
+        println!("{} {e}", style("error:").red().bold());
+    }
+
+    if errors.is_empty() {
+        let suffix = if warnings.is_empty() {
+            String::new()
+        } else {
+            format!(", {} warning(s)", warnings.len())
+        };
+        println!(
+            "{} {} is valid ({} tasks{suffix})",
+            style("✓").green(),
+            path.display(),
+            graph.task_names().count()
+        );
+        Ok(())
+    } else {
+        Err(YatrError::InvalidConfig {
+            message: format!("{} problem(s) found in {}", errors.len(), path.display()),
+        })
     }
 }
 

@@ -81,7 +81,8 @@ file does not. Verified end-to-end against the binary.
   JSON execution plan under `--json --dry-run`. Per-task timing is already shown inline.
 - [x] `--profile <path>` producing a Chrome trace (one event per task on the run timeline,
   viewable in `chrome://tracing` / Perfetto).
-- [ ] Polish `check` and error messages toward best-in-class.
+- [x] `check` validates referenced files (wasm plugins, task `cwd`s), warns on config smells
+  (`outputs` + `no_cache`, foreground with multiple commands), and exits non-zero on errors.
 
 ### v0.4 — Remote cache (the headline) 🟢 strategic differentiator #1
 

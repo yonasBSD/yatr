@@ -198,3 +198,42 @@ fn run_executes_wasm_plugin() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("from plugin"), "stdout: {stdout}");
 }
+
+/// `yatr check` errors on a missing referenced file and warns on config smells.
+#[test]
+fn check_validates_files_and_warns() {
+    // A wasm task pointing at a non-existent plugin → check fails.
+    let bad = tempfile::tempdir().unwrap();
+    std::fs::write(
+        bad.path().join("yatr.toml"),
+        "[tasks.gen]\nwasm = \"nope.wasm\"\n",
+    )
+    .unwrap();
+    let out = Command::cargo_bin("yatr")
+        .unwrap()
+        .current_dir(bad.path())
+        .arg("check")
+        .output()
+        .unwrap();
+    assert!(
+        !out.status.success(),
+        "check should fail on a missing plugin"
+    );
+
+    // A valid-but-smelly config → succeeds, with a warning.
+    let ok = tempfile::tempdir().unwrap();
+    std::fs::write(
+        ok.path().join("yatr.toml"),
+        "[tasks.build]\nrun = [\"echo hi\"]\noutputs = [\"dist\"]\nno_cache = true\n",
+    )
+    .unwrap();
+    let out = Command::cargo_bin("yatr")
+        .unwrap()
+        .current_dir(ok.path())
+        .arg("check")
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("warning:"), "expected a warning: {stdout}");
+}

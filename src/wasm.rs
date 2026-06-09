@@ -61,7 +61,7 @@ pub fn run_plugin(wasm_path: &Path, task_name: &str) -> Result<String> {
         .func_wrap(
             "yatr",
             "log",
-            |mut caller: Caller<'_, PluginState>, ptr: i32, len: i32| {
+            |caller: Caller<'_, PluginState>, ptr: i32, len: i32| {
                 if let Some(s) = read_string(&caller, ptr, len) {
                     tracing::info!("[plugin] {s}");
                 }
