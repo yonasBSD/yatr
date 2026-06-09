@@ -79,8 +79,9 @@ file does not. Verified end-to-end against the binary.
   subcommand + committed `yatr.schema.json`); editor setup documented in the README.
 - [x] **Structured JSON run output** (`yatr run --json`): per-task results + summary, and a
   JSON execution plan under `--json --dry-run`. Per-task timing is already shown inline.
+- [x] `--profile <path>` producing a Chrome trace (one event per task on the run timeline,
+  viewable in `chrome://tracing` / Perfetto).
 - [ ] Polish `check` and error messages toward best-in-class.
-- [ ] `--profile` producing a Chrome-trace / flamegraph.
 
 ### v0.4 — Remote cache (the headline) 🟢 strategic differentiator #1
 

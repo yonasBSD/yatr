@@ -259,6 +259,9 @@ yatr cache path              # Show cache directory
 # Machine-readable output
 yatr run --json test         # Structured JSON: per-task results + summary
 yatr run --json --dry-run ci # JSON execution plan, without running
+
+# Profiling
+yatr run --profile trace.json ci   # Chrome trace of the run (chrome://tracing / Perfetto)
 ```
 
 ## Shared (remote) cache

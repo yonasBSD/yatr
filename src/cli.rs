@@ -67,6 +67,10 @@ pub enum Commands {
         /// Emit machine-readable JSON instead of human output
         #[arg(long)]
         json: bool,
+
+        /// Write a Chrome trace of the run to this path (open in `chrome://tracing`)
+        #[arg(long, value_name = "PATH")]
+        profile: Option<PathBuf>,
     },
 
     /// List available tasks

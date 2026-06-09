@@ -78,9 +78,7 @@ async fn run(cli: Cli) -> Result<()> {
 
     match cli.effective_command() {
         EffectiveCommand::Subcommand(cmd) => run_command(cmd, &cli).await,
-        EffectiveCommand::RunTasks(tasks) => {
-            run_tasks(tasks, false, false, 0, false, false, &cli).await
-        }
+        EffectiveCommand::RunTasks(tasks) => run_tasks(tasks, RunOpts::default(), &cli).await,
         EffectiveCommand::None => {
             // No command - show help or list tasks
             let (config, _) = Config::load(cli.config.as_deref())?;
@@ -100,6 +98,7 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
             parallel,
             shell,
             json,
+            profile,
         } => {
             if tasks.is_empty() {
                 let (config, _) = Config::load(cli.config.as_deref())?;
@@ -107,7 +106,15 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
                 print_task_list(&graph, &config, &ListFormat::Table, false);
                 Ok(())
             } else {
-                run_tasks(tasks, *dry_run, *force, *parallel, *shell, *json, cli).await
+                let opts = RunOpts {
+                    dry_run: *dry_run,
+                    force: *force,
+                    parallel: *parallel,
+                    shell: *shell,
+                    json: *json,
+                    profile: profile.clone(),
+                };
+                run_tasks(tasks, opts, cli).await
             }
         }
 
@@ -165,21 +172,23 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
     }
 }
 
-#[allow(clippy::fn_params_excessive_bools)]
-async fn run_tasks(
-    tasks: &[String],
+/// Options for a `run` invocation.
+#[derive(Default)]
+struct RunOpts {
     dry_run: bool,
     force: bool,
     parallel: usize,
     shell: bool,
     json: bool,
-    cli: &Cli,
-) -> Result<()> {
+    profile: Option<std::path::PathBuf>,
+}
+
+async fn run_tasks(tasks: &[String], opts: RunOpts, cli: &Cli) -> Result<()> {
     let (config, _) = Config::load(cli.config.as_deref())?;
     let graph = TaskGraph::from_config(&config)?;
 
     // JSON dry-run: emit the execution plan rather than running anything.
-    if json && dry_run {
+    if opts.json && opts.dry_run {
         let mut plan = Vec::new();
         for task in tasks {
             let order: Vec<&str> = graph
@@ -193,7 +202,7 @@ async fn run_tasks(
         return Ok(());
     }
 
-    let cache = if config.settings.cache && !dry_run {
+    let cache = if config.settings.cache && !opts.dry_run {
         let remote_cfg = config.settings.remote_cache.as_ref();
         let remote = match remote_cfg {
             Some(rc) => Some(remote::RemoteCache::from_config(rc)?),
@@ -213,13 +222,14 @@ async fn run_tasks(
     };
 
     let exec_config = ExecutorConfig {
-        parallelism: parallel,
-        dry_run,
-        force,
+        parallelism: opts.parallel,
+        dry_run: opts.dry_run,
+        force: opts.force,
         cwd: std::env::current_dir()?,
-        shell,
+        shell: opts.shell,
         verbose: cli.verbose,
-        json,
+        json: opts.json,
+        run_start: std::time::Instant::now(),
     };
 
     let executor = Executor::new(config, exec_config, cache);
@@ -230,10 +240,48 @@ async fn run_tasks(
         all_results.append(&mut results);
     }
 
-    if json {
+    if opts.json {
         print_run_json(&all_results)?;
     }
+    if let Some(path) = &opts.profile {
+        write_profile(&all_results, path)?;
+        if !opts.json {
+            println!("{} Wrote trace to {}", style("⏱").cyan(), path.display());
+        }
+    }
 
+    Ok(())
+}
+
+/// Write a Chrome Trace Event Format file (viewable in `chrome://tracing` or
+/// Perfetto): one complete event per task, placed on the run timeline.
+fn write_profile(results: &[TaskResult], path: &std::path::Path) -> Result<()> {
+    let us = |d: std::time::Duration| u64::try_from(d.as_micros()).unwrap_or(u64::MAX);
+
+    let events: Vec<_> = results
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            serde_json::json!({
+                "name": r.name,
+                "cat": if r.cached { "cached" } else { "run" },
+                "ph": "X",
+                "pid": 1,
+                "tid": i + 1,
+                "ts": us(r.start_offset),
+                "dur": us(r.duration),
+                "args": { "success": r.success, "cached": r.cached },
+            })
+        })
+        .collect();
+
+    let doc = serde_json::json!({
+        "traceEvents": events,
+        "displayTimeUnit": "ms",
+    });
+    let text = serde_json::to_string(&doc)
+        .map_err(|e| YatrError::Io(std::io::Error::other(e.to_string())))?;
+    std::fs::write(path, text)?;
     Ok(())
 }
 

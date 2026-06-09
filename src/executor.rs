@@ -26,6 +26,8 @@ pub struct TaskResult {
     pub name: String,
     pub success: bool,
     pub duration: Duration,
+    /// Offset from the start of the run until this task began (for profiling)
+    pub start_offset: Duration,
     pub cached: bool,
     pub output: Option<String>,
     pub error: Option<String>,
@@ -48,6 +50,8 @@ pub struct ExecutorConfig {
     pub verbose: bool,
     /// Suppress human output; caller emits machine-readable JSON instead
     pub json: bool,
+    /// Reference instant for the whole run, used to compute task start offsets
+    pub run_start: Instant,
 }
 
 impl Default for ExecutorConfig {
@@ -60,6 +64,7 @@ impl Default for ExecutorConfig {
             shell: false,
             verbose: false,
             json: false,
+            run_start: Instant::now(),
         }
     }
 }
@@ -198,6 +203,7 @@ impl Executor {
         cache: Option<&Cache>,
     ) -> Result<TaskResult> {
         let start = Instant::now();
+        let start_offset = exec_config.run_start.elapsed();
         let env = config.task_env(&task.config);
 
         // Determine working directory (needed for cache key + output restore)
@@ -216,6 +222,7 @@ impl Executor {
                             name: task.name.clone(),
                             success: true,
                             duration: start.elapsed(),
+                            start_offset,
                             cached: true,
                             output: Some(cached),
                             error: None,
@@ -277,6 +284,7 @@ impl Executor {
                     name: task.name.clone(),
                     success: true,
                     duration,
+                    start_offset,
                     cached: false,
                     output: Some(output),
                     error: None,
@@ -286,6 +294,7 @@ impl Executor {
                 name: task.name.clone(),
                 success: false,
                 duration,
+                start_offset,
                 cached: false,
                 output: None,
                 error: Some(e.to_string()),
