@@ -3,10 +3,13 @@
 Yet another task runner. But this one's actually good.
 
 ```
-yatr test        # Run tests
-yatr build       # Build with dependencies
+yatr test          # Run tests
+yatr build         # Build with dependencies
 yatr --watch test  # Re-run on file changes
 ```
+
+A fast, single-binary, polyglot task runner with a cache that actually tells the
+truth: content-addressed, output-restoring, and shareable across machines and CI.
 
 ## Why yatr?
 
@@ -14,21 +17,27 @@ yatr --watch test  # Re-run on file changes
 |---------|------|------|------------|------------|
 | Simple config | ❌ | ✅ | ⚠️ | ✅ |
 | Parallel execution | ❌ | ✅ | ✅ | ✅ |
-| Task caching | ❌ | ❌ | ⚠️ | ✅ |
+| Content-addressed caching | ❌ | ❌ | ⚠️ | ✅ |
+| Captures & restores outputs | ❌ | ❌ | ❌ | ✅ |
+| Remote / shared cache | ❌ | ❌ | ❌ | ✅ |
+| Signed cache (anti-poisoning) | ❌ | ❌ | ❌ | ✅ |
+| Watch mode | ❌ | ❌ | ❌ | ✅ |
+| Config schema + JSON output | ❌ | ❌ | ❌ | ✅ |
 | Scripting | Shell | Shell | Multiple | Rhai |
 | Cross-platform | ❌ | ⚠️ | ✅ | ✅ |
-| Watch mode | ❌ | ❌ | ❌ | ✅ |
 | Zero runtime deps | N/A | ✅ | ❌ | ✅ |
 
 yatr sits in the sweet spot: **simpler than cargo-make**, **more powerful than just**.
 
 ## Installation
 
+Build and install from source (requires a Rust toolchain):
+
 ```bash
-cargo install yatr
+cargo install --git https://github.com/cargopete/yatr
 ```
 
-Or build from source:
+Or from a local clone:
 
 ```bash
 git clone https://github.com/cargopete/yatr
