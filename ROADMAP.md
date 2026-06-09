@@ -125,7 +125,9 @@ On top of the now-real local CAS. **Slice 1 (yatr-native protocol) shipped:**
   - [x] WASM-backed task type (`wasm = "plugin.wasm"`) running in a pure-Rust `wasmi` interpreter,
     **capability-sandboxed** (only yatr's `emit`/`log` host ABI imported — no fs/network/clock).
     Plugins export `run() -> i32`; output is captured and cached like any task. Also accepts `.wat`.
-  - [ ] Richer host ABI (read inputs/env, declare cache-key contributions, structured I/O).
+  - [x] Plugins read their input — `input_len`/`input_read` host fns deliver the task name and
+    env as JSON, so a single plugin can be parameterised per task.
+  - [ ] Declare cache-key contributions + structured I/O from plugins.
   - [ ] Plugin locators (file / GitHub) + a PDK for ergonomic plugin authoring in Rust.
   - [ ] More plugin roles: custom task runners, cache-key contributors, toolchain providers,
     output reporters.

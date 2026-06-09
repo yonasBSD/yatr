@@ -199,6 +199,48 @@ fn run_executes_wasm_plugin() {
     assert!(stdout.contains("from plugin"), "stdout: {stdout}");
 }
 
+/// A WASM plugin receives the task's env as input and can read it back.
+#[test]
+fn wasm_plugin_reads_task_env() {
+    let dir = tempfile::tempdir().unwrap();
+    // Reads the input JSON into memory and emits it back verbatim.
+    let wasm = wat::parse_str(
+        r#"(module
+            (import "yatr" "emit" (func $emit (param i32 i32)))
+            (import "yatr" "input_len" (func $input_len (result i32)))
+            (import "yatr" "input_read" (func $input_read (param i32) (result i32)))
+            (memory (export "memory") 1)
+            (func (export "run") (result i32)
+                (local $len i32)
+                (local.set $len (call $input_len))
+                (drop (call $input_read (i32.const 256)))
+                (call $emit (i32.const 256) (local.get $len))
+                (i32.const 0)))"#,
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("p.wasm"), wasm).unwrap();
+
+    let mut cfg = std::fs::File::create(dir.path().join("yatr.toml")).unwrap();
+    write!(
+        cfg,
+        "[settings]\ncache = false\n[tasks.echo-env]\nwasm = \"p.wasm\"\nenv = {{ GREETING = \"bonjour\" }}\n"
+    )
+    .unwrap();
+
+    let out = Command::cargo_bin("yatr")
+        .unwrap()
+        .current_dir(dir.path())
+        .args(["run", "echo-env"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("GREETING") && stdout.contains("bonjour"),
+        "plugin should see task env: {stdout}"
+    );
+}
+
 /// `yatr check` errors on a missing referenced file and warns on config smells.
 #[test]
 fn check_validates_files_and_warns() {

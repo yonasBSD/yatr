@@ -305,15 +305,20 @@ Plugins are **capability-sandboxed**: they run in a pure-Rust interpreter with
 grants it. A plugin that tries to import anything else (e.g. WASI) fails to load.
 
 A plugin is a wasm module that exports its `memory` and a `run() -> i32` entry
-point (`0` = success), and may import two host functions from module `"yatr"`:
+point (`0` = success), and may import these host functions from module `"yatr"`:
 
 | Import | Signature | Effect |
 |--------|-----------|--------|
 | `emit` | `(ptr: i32, len: i32)` | Append the UTF-8 string at that memory range to the task's output |
 | `log`  | `(ptr: i32, len: i32)` | Log the string as an info message |
+| `input_len` | `() -> i32` | Byte length of this task's input |
+| `input_read` | `(ptr: i32) -> i32` | Copy the input bytes into memory at `ptr`; returns bytes written |
 
-Plugin output is captured and cached like any other task. (The plugin runtime
-also accepts `.wat` text, handy for quick experiments.)
+The plugin receives its task name and environment as JSON input
+(`{ "task": ..., "env": { ... } }`) — read it with `input_len` + `input_read`,
+so a single plugin can be parameterised per task. Plugin output is captured and
+cached like any other task. (The runtime also accepts `.wat` text, handy for
+quick experiments.)
 
 ## Splitting config across files
 
