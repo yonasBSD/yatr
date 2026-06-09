@@ -328,6 +328,25 @@ so a single plugin can be parameterised per task. Plugin output is captured and
 cached like any other task. (The runtime also accepts `.wat` text, handy for
 quick experiments.)
 
+### Writing plugins in Rust
+
+You don't have to hand-roll the memory ABI — the [`yatr-plugin`](crates/yatr-plugin)
+crate wraps it so you write plain Rust:
+
+```rust
+yatr_plugin::plugin!({
+    let input = yatr_plugin::input_string();  // {"task":...,"env":{...}}
+    yatr_plugin::emit(&format!("hello from a plugin; input = {input}"));
+    Ok(())
+});
+```
+
+```bash
+cargo build --release --target wasm32-unknown-unknown
+```
+
+Then point a task at the resulting `.wasm`. See the crate's README for the full API.
+
 ## Splitting config across files
 
 Large repos can keep task definitions next to the code they build and compose

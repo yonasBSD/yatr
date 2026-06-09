@@ -1,0 +1,12 @@
+[package]
+name = "yatr-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "Write yatr WASM task plugins in ergonomic Rust"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cargopete/yatr"
+readme = "README.md"
+keywords = ["yatr", "wasm", "plugin", "task-runner"]
+categories = ["development-tools", "wasm"]
+
+[lib]

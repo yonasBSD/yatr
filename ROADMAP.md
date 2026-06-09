@@ -130,7 +130,10 @@ On top of the now-real local CAS. **Slice 1 (yatr-native protocol) shipped:**
   - [ ] Declare cache-key contributions + structured I/O from plugins.
   - [x] Remote plugin locators — `wasm = "https://…/plugin.wasm"` downloads once into a local
     plugin cache (`YATR_PLUGIN_DIR`) and reuses it; remote plugins still run sandboxed.
-  - [ ] GitHub-shorthand locators + a PDK for ergonomic plugin authoring in Rust.
+  - [x] **PDK** (`yatr-plugin` crate) — write plugins in ergonomic Rust (`plugin!` macro +
+    `emit`/`log`/`input_string`); host stubs let it build/test off-wasm. Verified end-to-end:
+    a PDK plugin compiled to wasm32 and ran in yatr, reading its task env.
+  - [ ] GitHub-shorthand locators (`github:owner/repo@tag/plugin.wasm`).
   - [ ] More plugin roles: custom task runners, cache-key contributors, toolchain providers,
     output reporters.
 - **Toolchain management / pinning** — the single biggest _polyglot_ gap. A `[toolchain]`

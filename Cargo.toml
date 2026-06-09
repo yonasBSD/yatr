@@ -1,3 +1,6 @@
+[workspace]
+members = ["crates/yatr-plugin"]
+
 [package]
 name = "yatr"
 version = "0.6.1"
