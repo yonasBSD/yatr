@@ -128,7 +128,9 @@ On top of the now-real local CAS. **Slice 1 (yatr-native protocol) shipped:**
   - [x] Plugins read their input — `input_len`/`input_read` host fns deliver the task name and
     env as JSON, so a single plugin can be parameterised per task.
   - [ ] Declare cache-key contributions + structured I/O from plugins.
-  - [ ] Plugin locators (file / GitHub) + a PDK for ergonomic plugin authoring in Rust.
+  - [x] Remote plugin locators — `wasm = "https://…/plugin.wasm"` downloads once into a local
+    plugin cache (`YATR_PLUGIN_DIR`) and reuses it; remote plugins still run sandboxed.
+  - [ ] GitHub-shorthand locators + a PDK for ergonomic plugin authoring in Rust.
   - [ ] More plugin roles: custom task runners, cache-key contributors, toolchain providers,
     output reporters.
 - **Toolchain management / pinning** — the single biggest _polyglot_ gap. A `[toolchain]`

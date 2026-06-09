@@ -297,8 +297,16 @@ Rhai script — write it in any language that compiles to `wasm32`, ship a singl
 ```toml
 [tasks.codegen]
 desc = "Run a sandboxed WASM plugin"
-wasm = "plugins/codegen.wasm"   # path relative to the task's working directory
+wasm = "plugins/codegen.wasm"   # local path, relative to the task's working directory
+
+[tasks.shared]
+wasm = "https://example.com/releases/v1/plugin.wasm"   # or an http(s) URL
 ```
+
+A `wasm` reference may be a local path or an `http(s)://` **URL** — remote
+plugins are downloaded once into a local plugin cache and reused (override the
+cache dir with `YATR_PLUGIN_DIR`). Use a versioned URL so a new release is picked
+up. Because plugins run sandboxed, even an untrusted remote plugin can't escape.
 
 Plugins are **capability-sandboxed**: they run in a pure-Rust interpreter with
 *only* yatr's host ABI imported — no filesystem, network, or clock unless yatr

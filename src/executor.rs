@@ -243,8 +243,8 @@ impl Executor {
             Self::execute_foreground(&task.name, &task.config.run, &env, &cwd, &task_exec_config)
                 .await
         } else if let Some(wasm) = &task.config.wasm {
-            // Execute a sandboxed WASM plugin
-            Self::execute_wasm(&task.name, wasm, &cwd, &env)
+            // Execute a sandboxed WASM plugin (local path or downloaded URL)
+            Self::execute_wasm(&task.name, wasm, &cwd, &env).await
         } else if let Some(script) = &task.config.script {
             // Execute Rhai script
             Self::execute_script(&task.name, script, &env, &cwd)
@@ -321,20 +321,17 @@ impl Executor {
             })
     }
 
-    /// Execute a sandboxed WASM plugin. The path is resolved relative to the
-    /// task's working directory; the task name and environment are passed to the
+    /// Execute a sandboxed WASM plugin. The reference is a local path (resolved
+    /// relative to the task's working directory) or an `http(s)://` URL that is
+    /// downloaded and cached. The task name and environment are passed to the
     /// plugin as JSON input.
-    fn execute_wasm(
+    async fn execute_wasm(
         task_name: &str,
         wasm: &Path,
         cwd: &Path,
         env: &HashMap<String, String>,
     ) -> Result<String> {
-        let path = if wasm.is_absolute() {
-            wasm.to_path_buf()
-        } else {
-            cwd.join(wasm)
-        };
+        let path = crate::wasm::resolve_plugin(&wasm.to_string_lossy(), cwd, task_name).await?;
         let input = serde_json::json!({ "task": task_name, "env": env });
         let input_bytes = serde_json::to_vec(&input).unwrap_or_default();
         crate::wasm::run_plugin(&path, task_name, &input_bytes)

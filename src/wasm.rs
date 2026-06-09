@@ -21,11 +21,77 @@
 //!     memory at `ptr`, returning the number of bytes written (`-1` on failure,
 //!     e.g. if the memory isn't large enough).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use wasmi::{Caller, Engine, Extern, Linker, Module, Store};
 
 use crate::error::{Result, YatrError};
+
+/// Resolve a plugin reference to a local `.wasm` file path.
+///
+/// A reference may be a local path (resolved relative to `cwd`) or an
+/// `http(s)://` URL, in which case the plugin is downloaded once into a local
+/// plugin cache and reused on subsequent runs. Remote plugins are still run in
+/// the same capability sandbox, so an untrusted plugin cannot escape.
+pub async fn resolve_plugin(wasm_ref: &str, cwd: &Path, task_name: &str) -> Result<PathBuf> {
+    if is_remote(wasm_ref) {
+        fetch_cached(wasm_ref, &plugins_cache_dir(), task_name).await
+    } else {
+        let p = Path::new(wasm_ref);
+        Ok(if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            cwd.join(p)
+        })
+    }
+}
+
+fn is_remote(s: &str) -> bool {
+    s.starts_with("http://") || s.starts_with("https://")
+}
+
+/// Directory where downloaded plugins are cached. Overridable via
+/// `YATR_PLUGIN_DIR` (useful for tests and reproducible CI).
+fn plugins_cache_dir() -> PathBuf {
+    if let Ok(dir) = std::env::var("YATR_PLUGIN_DIR") {
+        return PathBuf::from(dir);
+    }
+    directories::ProjectDirs::from("", "", "yatr").map_or_else(
+        || PathBuf::from(".yatr/plugins"),
+        |d| d.cache_dir().join("plugins"),
+    )
+}
+
+/// Download a plugin to `dir` (keyed by a hash of its URL) if not already
+/// cached, returning the local path. URLs are assumed immutable — use a
+/// versioned URL (e.g. a tagged release asset) to pick up a new plugin.
+async fn fetch_cached(url: &str, dir: &Path, task_name: &str) -> Result<PathBuf> {
+    let err = |message: String| YatrError::Plugin {
+        task: task_name.to_string(),
+        message,
+    };
+
+    std::fs::create_dir_all(dir).map_err(|e| err(format!("cannot create plugin cache: {e}")))?;
+    let key = blake3::hash(url.as_bytes()).to_hex().to_string();
+    let dest = dir.join(format!("{key}.wasm"));
+    if dest.exists() {
+        return Ok(dest);
+    }
+
+    let resp = reqwest::get(url)
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|e| err(format!("failed to download {url}: {e}")))?;
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| err(format!("failed to read {url}: {e}")))?;
+
+    let tmp = dest.with_extension(format!("tmp.{}", std::process::id()));
+    std::fs::write(&tmp, &bytes).map_err(|e| err(format!("cannot write plugin: {e}")))?;
+    std::fs::rename(&tmp, &dest).map_err(|e| err(format!("cannot store plugin: {e}")))?;
+    Ok(dest)
+}
 
 /// Host-side state threaded through a plugin invocation.
 #[derive(Default)]
@@ -197,6 +263,40 @@ mod tests {
         );
         let out = run_plugin(&path, "t", br#"{"task":"t","env":{"K":"V"}}"#).unwrap();
         assert_eq!(out, r#"{"task":"t","env":{"K":"V"}}"#);
+    }
+
+    #[tokio::test]
+    async fn fetches_and_runs_remote_plugin() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let wasm = wat::parse_str(
+            r#"(module
+                (import "yatr" "emit" (func $emit (param i32 i32)))
+                (memory (export "memory") 1)
+                (data (i32.const 0) "remote!")
+                (func (export "run") (result i32)
+                    (call $emit (i32.const 0) (i32.const 7))
+                    (i32.const 0)))"#,
+        )
+        .unwrap();
+
+        let server = MockServer::start().await;
+        // Expect exactly ONE download even across two resolves (caching works).
+        Mock::given(method("GET"))
+            .and(path("/p.wasm"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(wasm))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let dir = tempfile::tempdir().unwrap();
+        let url = format!("{}/p.wasm", server.uri());
+
+        let p1 = fetch_cached(&url, dir.path(), "t").await.unwrap();
+        let p2 = fetch_cached(&url, dir.path(), "t").await.unwrap(); // served from cache
+        assert_eq!(p1, p2);
+        assert_eq!(run_plugin(&p1, "t", b"").unwrap(), "remote!");
     }
 
     #[test]
