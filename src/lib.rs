@@ -1,4 +1,4 @@
-//! YATR - A modern task runner for Rust projects
+//! YATR - A fast, polyglot, single-binary task runner.
 //!
 //! This crate provides both a CLI tool and a library for task automation.
 //!

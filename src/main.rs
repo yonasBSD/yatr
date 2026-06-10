@@ -1,4 +1,4 @@
-//! YATR - A modern task runner for Rust projects
+//! YATR - A fast, polyglot, single-binary task runner.
 //!
 //! Fast, ergonomic task automation with:
 //! - Simple TOML configuration
