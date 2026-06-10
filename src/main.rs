@@ -31,6 +31,7 @@ mod error;
 mod executor;
 mod graph;
 mod lsp;
+mod reapi;
 mod remote;
 mod script;
 mod toolchain;

@@ -40,6 +40,7 @@ notify-debouncer-mini = "0.7"
 
 # Caching & hashing
 blake3 = "1"
+sha2 = "0.10"             # SHA-256 for REAPI (bazel-remote) cache interop
 directories = "6"
 
 # Remote cache (HTTP client; rustls to avoid a system OpenSSL dependency)

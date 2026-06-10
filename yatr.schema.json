@@ -55,6 +55,25 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "CacheProtocol": {
+      "description": "Remote cache wire protocol.",
+      "oneOf": [
+        {
+          "description": "yatr's own JSON action results + BLAKE3 blobs (default).",
+          "type": "string",
+          "enum": [
+            "native"
+          ]
+        },
+        {
+          "description": "Bazel Remote Execution API: SHA-256 digests + protobuf `ActionResult`.",
+          "type": "string",
+          "enum": [
+            "reapi"
+          ]
+        }
+      ]
+    },
     "RemoteCacheConfig": {
       "description": "Configuration for a shared HTTP remote cache.\n\nThe cache speaks a simple REST protocol — `GET`/`PUT`/`HEAD` on `<url>/ac/<key>` (action results) and `<url>/cas/<blob>` (content blobs) — so it works against a plain object store or a small server, and shares the path layout used by Bazel's HTTP cache.",
       "type": "object",
@@ -62,6 +81,15 @@
         "url"
       ],
       "properties": {
+        "protocol": {
+          "description": "Wire protocol: `native` (yatr's JSON + BLAKE3) or `reapi` (SHA-256 + protobuf `ActionResult`, compatible with bazel-remote / BuildBuddy).",
+          "default": "native",
+          "allOf": [
+            {
+              "$ref": "#/definitions/CacheProtocol"
+            }
+          ]
+        },
         "read": {
           "description": "Read from the remote cache on a local miss",
           "default": true,

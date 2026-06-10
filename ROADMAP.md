@@ -108,9 +108,10 @@ On top of the now-real local CAS. **Slice 1 (yatr-native protocol) shipped:**
 
 **Remaining for v0.4:**
 
-- [ ] **REAPI interop**: SHA-256 digests + protobuf `ActionResult` so the cache plugs into
-  off-the-shelf servers (bazel-remote first; BuildBuddy / NativeLink / Depot later). BLAKE3 stays
-  the fast local default.
+- [x] **REAPI interop**: `protocol = "reapi"` speaks SHA-256 digests + protobuf `ActionResult`
+  on the `/ac/`+`/cas/` HTTP layout, so off-the-shelf servers (bazel-remote, BuildBuddy) can be
+  yatr's shared cache backend. Dependency-free protobuf; verified by a known-bytes test + mock
+  server. BLAKE3 stays the fast local/native default.
 - [ ] Immutable entries + scoped read/write tokens (the rest of the poisoning hardening).
 
 ### v0.5+ — Scale & extensibility

@@ -31,3 +31,22 @@ signature doesn't verify under your key.
 
 Keep secrets out of the committed config by using the `*_env` options rather than
 inline values.
+
+## REAPI interop
+
+By default the remote cache speaks yatr's own protocol (JSON action results +
+BLAKE3 blobs). Set `protocol = "reapi"` to instead speak the **Bazel Remote
+Execution API** HTTP cache — SHA-256 digests and a protobuf `ActionResult` — so an
+off-the-shelf server like [bazel-remote](https://github.com/buchgr/bazel-remote)
+or BuildBuddy can serve as yatr's shared cache backend:
+
+```toml
+[settings.remote_cache]
+url = "https://bazel-remote.example.com"
+protocol = "reapi"
+```
+
+This shares cache entries across yatr instances via a standard REAPI server (it
+does not share entries *with* Bazel itself — the action keys differ). Signing is
+yatr-native and applies to the `native` protocol.
+

@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
 
-use crate::config::RemoteCacheConfig;
+use crate::config::{CacheProtocol, RemoteCacheConfig};
 use crate::error::{Result, YatrError};
 
 /// Client for a remote cache backend.
@@ -31,6 +31,8 @@ pub struct RemoteCache {
     pub read: bool,
     /// Write to the remote after a successful run
     pub write: bool,
+    /// Wire protocol (native or REAPI)
+    pub protocol: CacheProtocol,
 }
 
 impl RemoteCache {
@@ -58,6 +60,7 @@ impl RemoteCache {
             token,
             read: config.read,
             write: config.write,
+            protocol: config.protocol,
         })
     }
 

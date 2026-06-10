@@ -59,6 +59,7 @@ pub mod error;
 pub mod executor;
 pub mod graph;
 pub mod lsp;
+pub mod reapi;
 pub mod remote;
 pub mod script;
 pub mod toolchain;

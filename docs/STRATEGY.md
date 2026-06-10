@@ -91,8 +91,10 @@ built yet.
   plugins, editor integration, benchmarks, and the CLI.
 
 ### Tier 3 — Ecosystem & frontier
-- **REAPI interop** (SHA-256 + protobuf ActionResult) — plug into bazel-remote /
-  BuildBuddy. Ecosystem reach.
+- **REAPI interop** — ✅ **Shipped** — `protocol = "reapi"` speaks SHA-256 +
+  protobuf `ActionResult` for bazel-remote / BuildBuddy. Encoding verified by a
+  known-bytes test + mock-server round-trip; confirm against a live server on
+  your machine. (Dependency-free hand-rolled protobuf, no `prost`/`protoc`.)
 - **Work-stealing scheduler**: ✅ **Shipped** — a ready-queue runs any task the
   moment its deps complete, instead of strict level barriers. Measured ~1.8× on a
   DAG with a fast chain beside a slow sibling (791 ms → 430 ms).

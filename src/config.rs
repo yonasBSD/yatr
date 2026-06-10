@@ -119,6 +119,22 @@ pub struct RemoteCacheConfig {
     /// Write to the remote cache after a successful run
     #[serde(default = "default_true")]
     pub write: bool,
+
+    /// Wire protocol: `native` (yatr's JSON + BLAKE3) or `reapi` (SHA-256 +
+    /// protobuf `ActionResult`, compatible with bazel-remote / BuildBuddy).
+    #[serde(default)]
+    pub protocol: CacheProtocol,
+}
+
+/// Remote cache wire protocol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CacheProtocol {
+    /// yatr's own JSON action results + BLAKE3 blobs (default).
+    #[default]
+    Native,
+    /// Bazel Remote Execution API: SHA-256 digests + protobuf `ActionResult`.
+    Reapi,
 }
 
 const fn default_true() -> bool {

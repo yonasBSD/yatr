@@ -409,7 +409,14 @@ token_env = "YATR_CACHE_TOKEN"   # optional; bearer token read from this env var
 sign_key_env = "YATR_CACHE_KEY"  # optional; shared secret for signing (see below)
 read = true                      # pull from the remote on a local miss (default: true)
 write = true                     # push after a successful run (default: true)
+protocol = "native"              # or "reapi" — see below
 ```
+
+**REAPI interop.** Set `protocol = "reapi"` to speak the Bazel Remote Execution
+API HTTP cache (SHA-256 digests + protobuf `ActionResult`), so an off-the-shelf
+server like [bazel-remote](https://github.com/buchgr/bazel-remote) or BuildBuddy
+can be yatr's shared cache backend. (Signing is yatr-native, so it applies to the
+`native` protocol.)
 
 The cache is **content-addressed and machine-portable**: identical inputs produce
 identical keys regardless of checkout path. A flaky or unreachable remote is

@@ -28,8 +28,9 @@ use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use crate::config::TaskConfig;
+use crate::config::{CacheProtocol, TaskConfig};
 use crate::error::{Result, YatrError};
+use crate::reapi;
 use crate::remote::RemoteCache;
 
 /// A single cached output file: its path relative to the task's working
@@ -161,7 +162,7 @@ impl Cache {
             Some(result)
         } else {
             // Local miss: try the remote, populating the local cache on a hit.
-            self.fetch_from_remote(&key, task_name).await
+            self.fetch_from_remote(&key, task_name, cwd).await
         };
 
         let Some(result) = result else {
@@ -218,10 +219,18 @@ impl Cache {
     /// On a local miss, try the remote: download the action result and any
     /// referenced blobs into the local store. Remote failures are non-fatal —
     /// they degrade to a miss, never an error.
-    async fn fetch_from_remote(&self, key: &str, task_name: &str) -> Option<ActionResult> {
+    async fn fetch_from_remote(
+        &self,
+        key: &str,
+        task_name: &str,
+        cwd: &Path,
+    ) -> Option<ActionResult> {
         let remote = self.remote.as_ref()?;
         if !remote.read {
             return None;
+        }
+        if remote.protocol == CacheProtocol::Reapi {
+            return Self::fetch_reapi(remote, key, cwd).await;
         }
 
         let ac_bytes = match remote.get_ac(key).await {
@@ -303,7 +312,8 @@ impl Cache {
         Self::write_atomic(&self.ac_path(&key), &bytes)?;
 
         // Write-through to the remote (non-fatal).
-        self.upload_to_remote(&key, &signed.result, bytes).await;
+        self.upload_to_remote(&key, &signed.result, bytes, cwd)
+            .await;
         Ok(())
     }
 
@@ -315,11 +325,21 @@ impl Cache {
 
     /// Upload an action result and its blobs to the remote cache. Best-effort:
     /// any failure is logged and swallowed so it can't break the build.
-    async fn upload_to_remote(&self, key: &str, result: &ActionResult, ac_bytes: Vec<u8>) {
+    async fn upload_to_remote(
+        &self,
+        key: &str,
+        result: &ActionResult,
+        ac_bytes: Vec<u8>,
+        cwd: &Path,
+    ) {
         let Some(remote) = self.remote.as_ref() else {
             return;
         };
         if !remote.write {
+            return;
+        }
+        if remote.protocol == CacheProtocol::Reapi {
+            self.upload_reapi(remote, key, result, cwd).await;
             return;
         }
 
@@ -341,6 +361,118 @@ impl Cache {
             tracing::warn!("remote cache action upload failed for {key}: {e}");
         }
     }
+
+    /// Upload using the REAPI wire format: SHA-256 CAS blobs + a protobuf
+    /// `ActionResult` under a SHA-256 action key. Interoperates with
+    /// bazel-remote / BuildBuddy as yatr's shared cache backend.
+    async fn upload_reapi(
+        &self,
+        remote: &RemoteCache,
+        key: &str,
+        result: &ActionResult,
+        cwd: &Path,
+    ) {
+        let ac_key = reapi::sha256_hex(key.as_bytes());
+        let mut files = Vec::new();
+        for entry in &result.outputs {
+            let Ok(bytes) = std::fs::read(self.cas_path(&entry.blob)) else {
+                return;
+            };
+            let digest = reapi::sha256_hex(&bytes);
+            let size = bytes.len() as u64;
+            let executable = Self::is_executable(&cwd.join(&entry.path));
+            if !remote.has_cas(&digest).await.unwrap_or(false) {
+                if let Err(e) = remote.put_cas(&digest, bytes).await {
+                    tracing::warn!("reapi blob upload failed: {e}");
+                    return;
+                }
+            }
+            files.push(reapi::OutputFile {
+                path: entry.path.clone(),
+                digest,
+                size,
+                executable,
+            });
+        }
+        let ar = reapi::ActionResult {
+            output_files: files,
+            exit_code: 0,
+            stdout: result.stdout.clone().into_bytes(),
+        };
+        if let Err(e) = remote
+            .put_ac(&ac_key, reapi::encode_action_result(&ar))
+            .await
+        {
+            tracing::warn!("reapi action upload failed: {e}");
+        }
+    }
+
+    /// Fetch + restore from a REAPI cache. Output files are written directly to
+    /// `cwd` (verified against their SHA-256 digests); the returned result has no
+    /// local outputs, so the caller's restore step is a no-op.
+    async fn fetch_reapi(remote: &RemoteCache, key: &str, cwd: &Path) -> Option<ActionResult> {
+        let ac_key = reapi::sha256_hex(key.as_bytes());
+        let ac_bytes = match remote.get_ac(&ac_key).await {
+            Ok(bytes) => bytes?,
+            Err(e) => {
+                tracing::warn!("reapi read failed for {ac_key}: {e}");
+                return None;
+            }
+        };
+        let ar = reapi::decode_action_result(&ac_bytes)?;
+
+        for f in &ar.output_files {
+            let Ok(Some(bytes)) = remote.get_cas(&f.digest).await else {
+                return None;
+            };
+            if reapi::sha256_hex(&bytes) != f.digest {
+                tracing::warn!("reapi blob {} failed integrity check", f.digest);
+                return None;
+            }
+            let dest = cwd.join(&f.path);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent).ok()?;
+            }
+            Self::write_atomic(&dest, &bytes).ok()?;
+            if f.executable {
+                Self::set_executable(&dest);
+            }
+        }
+
+        Some(ActionResult {
+            key: key.to_string(),
+            task: String::new(),
+            created_at: chrono::Utc::now(),
+            duration_ms: 0,
+            success: true,
+            stdout: String::from_utf8_lossy(&ar.stdout).into_owned(),
+            outputs: Vec::new(),
+        })
+    }
+
+    #[cfg(unix)]
+    fn is_executable(path: &Path) -> bool {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
+    }
+
+    #[cfg(not(unix))]
+    fn is_executable(_path: &Path) -> bool {
+        false
+    }
+
+    #[cfg(unix)]
+    fn set_executable(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(md) = std::fs::metadata(path) {
+            let mut perms = md.permissions();
+            perms.set_mode(perms.mode() | 0o755);
+            let _ = std::fs::set_permissions(path, perms);
+        }
+    }
+
+    #[cfg(not(unix))]
+    fn set_executable(_path: &Path) {}
 
     /// Invalidate the cached entry for a specific task + input combination.
     // Async by design: a remote (REAPI) backend will perform network I/O here.
@@ -810,6 +942,7 @@ mod tests {
             sign_key_env: None,
             read: true,
             write: true,
+            protocol: CacheProtocol::Native,
         }
     }
 
@@ -1016,5 +1149,108 @@ mod tests {
             None
         );
         assert!(!work.path().join("out.txt").exists());
+    }
+
+    #[tokio::test]
+    async fn reapi_fetch_decodes_protobuf_and_restores() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let cache_dir = tempfile::tempdir().unwrap();
+        let work = tempfile::tempdir().unwrap();
+
+        let config = task_with(&[], &["out.txt"]);
+        let key = Cache::compute_key("build", &config, work.path()).unwrap();
+        let ac_key = reapi::sha256_hex(key.as_bytes());
+        let content = b"reapi bytes";
+        let digest = reapi::sha256_hex(content);
+
+        // A protobuf ActionResult, as bazel-remote would store it.
+        let ar = reapi::ActionResult {
+            output_files: vec![reapi::OutputFile {
+                path: "out.txt".into(),
+                digest: digest.clone(),
+                size: content.len() as u64,
+                executable: false,
+            }],
+            exit_code: 0,
+            stdout: b"from-reapi".to_vec(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path(format!("/ac/{ac_key}")))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_bytes(reapi::encode_action_result(&ar)),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("/cas/{digest}")))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(content.to_vec()))
+            .mount(&server)
+            .await;
+
+        let mut cfg = remote_cfg(server.uri());
+        cfg.protocol = CacheProtocol::Reapi;
+        let cache = Cache::new(Some(cache_dir.path().to_path_buf()))
+            .unwrap()
+            .with_remote(Some(RemoteCache::from_config(&cfg).unwrap()));
+
+        let out = cache.get("build", &config, work.path()).await.unwrap();
+        assert_eq!(out, Some("from-reapi".to_string()));
+        assert_eq!(std::fs::read(work.path().join("out.txt")).unwrap(), content);
+    }
+
+    #[tokio::test]
+    async fn reapi_upload_uses_sha256_paths() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let cache_dir = tempfile::tempdir().unwrap();
+        let work = tempfile::tempdir().unwrap();
+        std::fs::write(work.path().join("art.bin"), b"payload").unwrap();
+
+        let config = task_with(&[], &["art.bin"]);
+        let key = Cache::compute_key("build", &config, work.path()).unwrap();
+        let ac_key = reapi::sha256_hex(key.as_bytes());
+        let digest = reapi::sha256_hex(b"payload");
+
+        Mock::given(method("HEAD"))
+            .and(path(format!("/cas/{digest}")))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        Mock::given(method("PUT"))
+            .and(path(format!("/cas/{digest}")))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("PUT"))
+            .and(path(format!("/ac/{ac_key}")))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let mut cfg = remote_cfg(server.uri());
+        cfg.protocol = CacheProtocol::Reapi;
+        let cache = Cache::new(Some(cache_dir.path().to_path_buf()))
+            .unwrap()
+            .with_remote(Some(RemoteCache::from_config(&cfg).unwrap()));
+
+        cache
+            .put(
+                "build",
+                &config,
+                work.path(),
+                "out",
+                Duration::from_millis(1),
+            )
+            .await
+            .unwrap();
+        // MockServer verifies the SHA-256-keyed PUTs were received on drop.
     }
 }
