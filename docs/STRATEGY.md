@@ -76,8 +76,8 @@ built yet.
 - **Benchmarks**: ✅ **Shipped** ([`benches/`](../benches/)) — reproducible vs
   make/just/task. Result: ~8 ms startup (beats make, matches just); warm rebuild
   ~14× faster than a no-cache runner. "Fast" is now a number, honestly framed.
-- **Publish to crates.io** (yatr + yatr-plugin) — already publish-ready; unblocks
-  `cargo install yatr` and real adoption.
+- **Publish to crates.io** — ✅ **Shipped** — `yatr` 0.6.2 and `yatr-plugin` 0.1.0
+  are live; `cargo install yatr` / `cargo add yatr-plugin` work.
 
 ### Tier 2 — Unimpeachable correctness + delightful DX
 - **IO-tracing / graduated hermeticity**: ✅ **Shipped (writes)** — `--trace-io`
