@@ -61,7 +61,7 @@ pub struct ToolchainConfig {
 }
 
 /// Global settings for YATR behavior
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
     /// Default shell to use (if shell mode enabled)
@@ -87,6 +87,22 @@ pub struct Settings {
     /// Optional shared/remote cache backend
     #[serde(default)]
     pub remote_cache: Option<RemoteCacheConfig>,
+}
+
+impl Default for Settings {
+    /// Defaults must match the per-field serde defaults, so a `yatr.toml` with
+    /// no `[settings]` section behaves the same as an empty one — in particular,
+    /// caching is **on** by default.
+    fn default() -> Self {
+        Self {
+            shell: None,
+            cache: default_true(),
+            cache_dir: None,
+            parallelism: 0,
+            watch_debounce_ms: default_debounce(),
+            remote_cache: None,
+        }
+    }
 }
 
 /// Configuration for a shared HTTP remote cache.
@@ -417,6 +433,18 @@ mod tests {
 
         let config: Config = toml::from_str(toml).unwrap();
         assert!(config.tasks["bump"].script.is_some());
+    }
+
+    #[test]
+    fn caching_defaults_on_without_a_settings_section() {
+        // Regression: a config with no `[settings]` table used to get
+        // Settings::default() = { cache: false }, silently disabling the cache.
+        let config: Config = toml::from_str("[tasks.t]\nrun = [\"true\"]\n").unwrap();
+        assert!(
+            config.settings.cache,
+            "caching must default ON even when `[settings]` is absent"
+        );
+        assert_eq!(config.settings.watch_debounce_ms, 300);
     }
 
     #[test]
