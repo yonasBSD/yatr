@@ -21,12 +21,14 @@ truth: content-addressed, output-restoring, and shareable across machines and CI
 | Parallel execution | ❌ | ✅ | ✅ | ✅ |
 | Content-addressed caching | ❌ | ❌ | ⚠️ | ✅ |
 | Captures & restores outputs | ❌ | ❌ | ❌ | ✅ |
-| Remote / shared cache | ❌ | ❌ | ❌ | ✅ |
+| Remote / shared cache (+ REAPI) | ❌ | ❌ | ❌ | ✅ |
 | Signed cache (anti-poisoning) | ❌ | ❌ | ❌ | ✅ |
-| Watch mode | ❌ | ❌ | ❌ | ✅ |
-| Config schema + JSON output | ❌ | ❌ | ❌ | ✅ |
+| Affected (monorepo) detection | ❌ | ❌ | ⚠️ | ✅ |
+| Toolchain management | ❌ | ❌ | ❌ | ✅ |
 | Sandboxed WASM plugins | ❌ | ❌ | ❌ | ✅ |
-| Scripting | Shell | Shell | Multiple | Rhai |
+| Config schema + editor LSP | ❌ | ⚠️ | ❌ | ✅ |
+| Watch mode | ❌ | ❌ | ❌ | ✅ |
+| Scripting | Shell | Shell | Multiple | Rhai + WASM |
 | Cross-platform | ❌ | ⚠️ | ✅ | ✅ |
 | Zero runtime deps | N/A | ✅ | ❌ | ✅ |
 
@@ -219,6 +221,7 @@ Commands:
   check    Validate configuration
   schema   Print the JSON Schema for yatr.toml
   affected List tasks affected by changes since a git ref
+  lsp      Run the yatr.toml language server (LSP over stdio)
 
 Options:
   -c, --config <PATH>  Config file path
@@ -508,6 +511,9 @@ depends = ["backend-test", "frontend-test"]
 ## Full Configuration Reference
 
 ```toml
+# Compose task definitions from other files (relative paths, merged recursively)
+include = ["frontend/yatr.toml", "backend/yatr.toml"]
+
 # Global environment variables
 [env]
 KEY = "value"
@@ -515,27 +521,48 @@ KEY = "value"
 # Global settings
 [settings]
 cache = true              # Enable caching (default: true)
-cache_dir = ".yatr"     # Cache directory
+cache_dir = ".yatr"       # Cache directory
 parallelism = 0           # Max parallel tasks (0 = CPU count)
 watch_debounce_ms = 300   # Watch debounce delay
+shell = "/bin/sh"         # Default shell when shell mode is enabled
+
+# Shared/remote cache (optional)
+[settings.remote_cache]
+url = "https://cache.example.com/yatr"
+token_env = "YATR_CACHE_TOKEN"   # env var holding a bearer token
+sign_key_env = "YATR_CACHE_KEY"  # env var holding the signing secret
+read = true                      # pull on a local miss
+write = true                     # push after a successful run
+protocol = "native"              # or "reapi" (bazel-remote compatible)
+
+# Pinned, auto-downloaded toolchains (optional)
+[toolchain.node]
+version = "20.11.0"
+url = "https://nodejs.org/dist/v{version}/node-v{version}-{os}-{arch}.tar.gz"
+bin = "node-v{version}-{os}-{arch}/bin"
 
 # Task definition
 [tasks.example]
 desc = "Task description"           # Optional description
-run = ["cmd1", "cmd2"]              # Commands to run (or use 'script')
+run = ["cmd1", "cmd2"]              # Commands (or use 'script' / 'wasm')
 script = "..."                       # Rhai script (alternative to 'run')
+wasm = "plugin.wasm"                 # WASM plugin (path, http(s):// or github:…)
 depends = ["other-task"]             # Run these first
 parallel = false                     # Run commands in parallel
 env = { KEY = "value" }              # Task-specific env vars
 cwd = "./subdir"                     # Working directory
 shell = false                        # Use shell for commands
+foreground = true                    # Inherit stdio (dev servers); not cached
 watch = ["**/*.rs"]                  # File patterns for watch mode
-sources = ["src/**"]                 # Files affecting cache key
-outputs = ["target/"]                # Output files/dirs
-no_cache = false                     # Disable caching
+sources = ["src/**"]                 # Files affecting the cache key
+outputs = ["target/app"]             # Output files/dirs (captured & restored)
+no_cache = false                     # Disable caching for this task
 allow_failure = false                # Continue on failure
 timeout = 300                        # Timeout in seconds
 ```
+
+A JSON Schema for all of this is shipped (`yatr schema` / [`yatr.schema.json`](yatr.schema.json))
+and powers editor autocomplete + the [language server](#language-server).
 
 ## License
 
