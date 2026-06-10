@@ -1,0 +1,12 @@
+[book]
+title = "yatr"
+description = "Yet another task runner. But this one's actually good."
+authors = ["Pete"]
+language = "en"
+src = "src"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/cargopete/yatr"
+edit-url-template = "https://github.com/cargopete/yatr/edit/main/docs/book/{path}"

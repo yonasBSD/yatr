@@ -86,8 +86,9 @@ built yet.
 - **LSP for `yatr.toml`**: ✅ **Shipped (slice 1)** — `yatr lsp` gives live
   diagnostics (parse/validation/missing-dep/cycle) + a task outline. Remaining:
   hover docs, go-to-definition on dependencies, completion.
-- **Docs site + cookbook**: real-world recipes (Rust+JS+Docker, CI patterns,
-  plugins), beyond the single Boutique Bouquet showcase.
+- **Docs site**: ✅ **Shipped** — an mdbook site (`docs/book/`) deployed to GitHub
+  Pages covering install, tasks, caching, remote cache, monorepo, toolchains,
+  plugins, editor integration, benchmarks, and the CLI.
 
 ### Tier 3 — Ecosystem & frontier
 - **REAPI interop** (SHA-256 + protobuf ActionResult) — plug into bazel-remote /

@@ -1,0 +1,36 @@
+# Monorepos
+
+## Affected detection
+
+In a large repo you don't want to run everything on every change. `yatr affected
+<git-ref>` lists the tasks touched by changes since a ref — a task is affected
+when one of its `sources`/`watch` globs matches a changed file, and the result
+propagates to everything that (transitively) depends on it.
+
+```bash
+yatr affected main                     # what would I need to run for this branch?
+yatr affected HEAD~1 --format json     # machine-readable, for CI
+yatr run --affected origin/main test lint build   # run only the affected ones
+```
+
+Caching gives you *correctness* (unchanged tasks are cache hits); affected
+detection adds *speed at scale* by not even considering tasks git says can't have
+moved. A task that declares no `sources` is treated as always affected — declaring
+`sources` is what unlocks skipping.
+
+## Splitting config across files
+
+Keep task definitions next to the code they build and compose them from a root
+`yatr.toml` with `include`:
+
+```toml
+# yatr.toml
+include = ["frontend/yatr.toml", "backend/yatr.toml"]
+
+[tasks.build-all]
+depends = ["fe-build", "be-build"]   # tasks defined in the included files
+```
+
+Includes are resolved relative to the including file and merged recursively
+(cycles are detected). Tasks and `env` are composed; the root file's `settings`
+are authoritative. A task defined in two files is an error — names are global.

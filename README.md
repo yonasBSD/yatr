@@ -2,6 +2,8 @@
 
 Yet another task runner. But this one's actually good.
 
+📖 **Documentation: <https://cargopete.github.io/yatr/>**
+
 ```
 yatr test          # Run tests
 yatr build         # Build with dependencies
