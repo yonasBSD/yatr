@@ -30,6 +30,10 @@ truth: content-addressed, output-restoring, and shareable across machines and CI
 
 yatr sits in the sweet spot: **simpler than cargo-make**, **more powerful than just**.
 
+**Fast, too:** ~8 ms startup (beats `make`, matches `just`), and a content-addressed
+cache that makes warm rebuilds ~14× faster than a runner with no caching. See
+[`benches/`](benches/) — reproduce the numbers with `benches/bench.sh`.
+
 ## Installation
 
 ```bash

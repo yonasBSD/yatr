@@ -73,8 +73,9 @@ built yet.
 - **Toolchain pinning** (`[toolchain]`): pin + auto-download language runtimes,
   inject into task PATH. ✅ **Shipped** (generic `.tar.gz` installer, templated
   URLs, verified end-to-end). Remaining: zip archives + built-in tool presets.
-- **Benchmarks**: a reproducible suite vs make/just/task (+ moon where comparable),
-  committed and documented. Turns "fast" from a claim into a number.
+- **Benchmarks**: ✅ **Shipped** ([`benches/`](../benches/)) — reproducible vs
+  make/just/task. Result: ~8 ms startup (beats make, matches just); warm rebuild
+  ~14× faster than a no-cache runner. "Fast" is now a number, honestly framed.
 - **Publish to crates.io** (yatr + yatr-plugin) — already publish-ready; unblocks
   `cargo install yatr` and real adoption.
 
