@@ -75,6 +75,10 @@ pub enum Commands {
         /// Only run tasks affected by changes since this git ref
         #[arg(long, value_name = "GIT_REF")]
         affected: Option<String>,
+
+        /// Warn when a task writes files outside its declared `outputs`
+        #[arg(long)]
+        trace_io: bool,
     },
 
     /// List available tasks

@@ -33,6 +33,7 @@ mod graph;
 mod remote;
 mod script;
 mod toolchain;
+mod trace;
 mod wasm;
 mod watch;
 
@@ -103,6 +104,7 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
             json,
             profile,
             affected,
+            trace_io,
         } => {
             if tasks.is_empty() {
                 let (config, _) = Config::load(cli.config.as_deref())?;
@@ -118,6 +120,7 @@ async fn run_command(cmd: &Commands, cli: &Cli) -> Result<()> {
                     json: *json,
                     profile: profile.clone(),
                     affected: affected.clone(),
+                    trace_io: *trace_io,
                 };
                 run_tasks(tasks, opts, cli).await
             }
@@ -296,6 +299,7 @@ struct RunOpts {
     json: bool,
     profile: Option<std::path::PathBuf>,
     affected: Option<String>,
+    trace_io: bool,
 }
 
 async fn run_tasks(tasks: &[String], opts: RunOpts, cli: &Cli) -> Result<()> {
@@ -377,6 +381,7 @@ async fn run_tasks(tasks: &[String], opts: RunOpts, cli: &Cli) -> Result<()> {
         shell: opts.shell,
         verbose: cli.verbose,
         json: opts.json,
+        trace_io: opts.trace_io,
         run_start: std::time::Instant::now(),
     };
 

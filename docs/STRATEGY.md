@@ -80,8 +80,9 @@ built yet.
   `cargo install yatr` and real adoption.
 
 ### Tier 2 — Unimpeachable correctness + delightful DX
-- **IO-tracing / graduated hermeticity**: warn on undeclared reads/writes; opt-in
-  sandbox mode. Cache correctness before scaling.
+- **IO-tracing / graduated hermeticity**: ✅ **Shipped (writes)** — `--trace-io`
+  warns when a task writes outside its declared `outputs` (the #1 silent cache
+  bug). Remaining: read-tracing (needs OS syscall tooling) + opt-in sandbox mode.
 - **LSP for `yatr.toml`**: go-to-task, hover docs, diagnostics, dependency lenses.
 - **Docs site + cookbook**: real-world recipes (Rust+JS+Docker, CI patterns,
   plugins), beyond the single Boutique Bouquet showcase.

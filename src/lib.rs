@@ -61,6 +61,7 @@ pub mod graph;
 pub mod remote;
 pub mod script;
 pub mod toolchain;
+pub mod trace;
 pub mod wasm;
 pub mod watch;
 

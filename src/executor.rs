@@ -50,6 +50,8 @@ pub struct ExecutorConfig {
     pub verbose: bool,
     /// Suppress human output; caller emits machine-readable JSON instead
     pub json: bool,
+    /// Warn when a task writes files outside its declared `outputs`
+    pub trace_io: bool,
     /// Reference instant for the whole run, used to compute task start offsets
     pub run_start: Instant,
 }
@@ -64,6 +66,7 @@ impl Default for ExecutorConfig {
             shell: false,
             verbose: false,
             json: false,
+            trace_io: false,
             run_start: Instant::now(),
         }
     }
@@ -238,6 +241,10 @@ impl Executor {
             task_exec_config.shell = true;
         }
 
+        // IO tracing: snapshot the tree before a (non-foreground) run.
+        let trace_before =
+            (exec_config.trace_io && !task.config.foreground).then(|| crate::trace::snapshot(&cwd));
+
         let result = if task.config.foreground {
             // Execute in foreground with inherited stdio (for long-running processes)
             Self::execute_foreground(&task.name, &task.config.run, &env, &cwd, &task_exec_config)
@@ -272,6 +279,11 @@ impl Executor {
 
         let duration = start.elapsed();
 
+        // IO tracing: report files written outside the declared `outputs`.
+        if let Some(before) = trace_before {
+            Self::report_io_trace(&task.name, &cwd, &task.config.outputs, &before);
+        }
+
         match result {
             Ok(output) => {
                 // Store in cache (skip foreground tasks: their output isn't captured)
@@ -302,6 +314,24 @@ impl Executor {
                 output: None,
                 error: Some(e.to_string()),
             }),
+        }
+    }
+
+    /// Warn about files a task wrote outside its declared `outputs` (IO trace).
+    fn report_io_trace(
+        task_name: &str,
+        cwd: &Path,
+        outputs: &[String],
+        before: &crate::trace::Snapshot,
+    ) {
+        let after = crate::trace::snapshot(cwd);
+        let undeclared = crate::trace::undeclared_writes(before, &after, outputs);
+        if !undeclared.is_empty() {
+            eprintln!(
+                "{} task '{task_name}' wrote files not declared as `outputs`: {}",
+                style("trace:").yellow().bold(),
+                undeclared.join(", ")
+            );
         }
     }
 

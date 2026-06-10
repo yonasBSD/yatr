@@ -252,6 +252,9 @@ yatr graph                   # Show full graph
 yatr graph build             # Graph for specific task
 yatr graph --format dot build | dot -Tpng > graph.png
 
+# Cache correctness
+yatr run --trace-io build    # Warn if a task writes outside its declared `outputs`
+
 # Cache management
 yatr cache stats             # Show cache statistics
 yatr cache clear             # Clear all cached results

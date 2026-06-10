@@ -64,10 +64,10 @@ The piston the rest of the engine needs.
 - [x] Fix `hash_sources`: respect `.gitignore` (via the `ignore` crate), root the walk at the
   task's `cwd`, and stop following symlinks.
 - [x] Resolve the `duration_ms: 0` TODO and implement `yatr cache clear <task>` (`main.rs`).
-- [ ] **IO-tracing-lite:** warn when a task reads a file outside `sources` or writes outside
-  `outputs`. Deferred — it needs platform-specific syscall tracing (strace/dtrace/ptrace) and is
-  large enough to stand alone. Tracked for a v0.2.x follow-up. Cache correctness before cache
-  sharing — a fast cache that is occasionally wrong is worse than no cache.
+- [x] **IO-tracing (writes):** `yatr run --trace-io` snapshots the tree around a task and warns
+  when it writes files outside its declared `outputs` — the #1 silent cache bug. Portable
+  (gitignore-aware, size+mtime). (Remaining: read-tracing outside `sources` needs OS-level
+  syscall tracing; an opt-in sandbox mode is a later step.)
 
 _Acceptance (met):_ `yatr build && rm -rf <outputs> && yatr build` restores outputs from cache
 and the artifacts are present; changing a `sources` file busts the key; changing an unrelated
