@@ -3,7 +3,7 @@ members = ["crates/yatr-plugin"]
 
 [package]
 name = "yatr"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 authors = ["Pete"]
 description = "Yet Another Task Runner - a modern, fast task runner for Rust projects"
@@ -24,7 +24,7 @@ serde_json = "1"
 schemars = "0.8"          # JSON Schema generation for yatr.toml
 
 # Scripting (Rhai - fast startup, Rust-native)
-rhai = { git = "https://github.com/rhaiscript/rhai", features = ["sync", "serde"] }
+rhai = { version = "1.25.1", features = ["sync", "serde"] }
 
 # Async runtime & parallel execution
 tokio = { version = "1", features = ["full"] }

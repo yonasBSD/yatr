@@ -32,18 +32,14 @@ yatr sits in the sweet spot: **simpler than cargo-make**, **more powerful than j
 
 ## Installation
 
-Build and install from source (requires a Rust toolchain):
+```bash
+cargo install yatr
+```
+
+Or from source (latest `main`):
 
 ```bash
 cargo install --git https://github.com/cargopete/yatr
-```
-
-Or from a local clone:
-
-```bash
-git clone https://github.com/cargopete/yatr
-cd yatr
-cargo install --path .
 ```
 
 ## Quick Start

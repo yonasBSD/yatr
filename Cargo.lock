@@ -1234,9 +1234,10 @@ dependencies = [
 [[package]]
 name = "no-std-compat"
 version = "0.4.1"
-source = "git+https://gitlab.com/jD91mZM2/no-std-compat.git#47a5dfb6b48e8f8bf2fc4f6109c9b75f5c3c0b10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
 dependencies = [
- "spin 0.7.1",
+ "spin 0.5.2",
 ]
 
 [[package]]
@@ -1663,7 +1664,8 @@ dependencies = [
 [[package]]
 name = "rhai"
 version = "1.25.1"
-source = "git+https://github.com/rhaiscript/rhai#32bd1123867c1dcad06db0eb696dbc7409def76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd4dd0f8c36625202a4ba553c416c19b719947cd2a31d1bda06126e4a5727daf"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1681,7 +1683,8 @@ dependencies = [
 [[package]]
 name = "rhai_codegen"
 version = "3.2.0"
-source = "git+https://github.com/rhaiscript/rhai#32bd1123867c1dcad06db0eb696dbc7409def76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd3a7535e50bf36857e7be7bec276d334e8c2dfa469c2201226fd01638ea5ca"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1967,9 +1970,9 @@ dependencies = [
 
 [[package]]
 name = "spin"
-version = "0.7.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13287b4da9d1207a4f4929ac390916d64eacfe236a487e9a9f5b3be392be5162"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
@@ -3088,7 +3091,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "yatr"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "assert_cmd",
  "blake3",
