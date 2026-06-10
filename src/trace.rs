@@ -37,7 +37,10 @@ pub fn snapshot(cwd: &Path) -> Snapshot {
         };
         if let Ok(md) = path.metadata() {
             let mtime = md.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            map.insert(rel.to_string_lossy().into_owned(), (mtime, md.len()));
+            // Normalise to forward slashes so output-glob/prefix checks are
+            // consistent across platforms (Windows uses `\`).
+            let key = rel.to_string_lossy().replace('\\', "/");
+            map.insert(key, (mtime, md.len()));
         }
     }
     map
