@@ -137,7 +137,7 @@ pub struct RemoteCacheConfig {
     pub write: bool,
 
     /// Wire protocol: `native` (yatr's JSON + BLAKE3) or `reapi` (SHA-256 +
-    /// protobuf `ActionResult`, compatible with bazel-remote / BuildBuddy).
+    /// protobuf `ActionResult`, compatible with `bazel-remote` / `BuildBuddy`).
     #[serde(default)]
     pub protocol: CacheProtocol,
 }

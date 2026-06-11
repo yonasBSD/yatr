@@ -49,7 +49,10 @@
     unused_variables,
     unused_imports,
     unused_assignments,
-    mismatched_lifetime_syntaxes
+    mismatched_lifetime_syntaxes,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::struct_excessive_bools
 )]
 
 pub mod affected;

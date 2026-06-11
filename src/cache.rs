@@ -364,7 +364,7 @@ impl Cache {
 
     /// Upload using the REAPI wire format: SHA-256 CAS blobs + a protobuf
     /// `ActionResult` under a SHA-256 action key. Interoperates with
-    /// bazel-remote / BuildBuddy as yatr's shared cache backend.
+    /// `bazel-remote` / `BuildBuddy` as yatr's shared cache backend.
     async fn upload_reapi(
         &self,
         remote: &RemoteCache,
