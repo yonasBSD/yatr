@@ -2,7 +2,7 @@
 
 Yet another task runner. But this one's actually good.
 
-📖 **Documentation: <https://cargopete.github.io/yatr/>**
+🌐 **Website: <https://yetanothertaskrunner.com>** · 📖 **Documentation: <https://cargopete.github.io/yatr/>**
 
 ```
 yatr test          # Run tests

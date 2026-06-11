@@ -8,3 +8,6 @@
 .idea/
 .vscode/
 *.log
+
+# Vercel
+landing/.vercel
